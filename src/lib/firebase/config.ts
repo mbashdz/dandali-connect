@@ -2,20 +2,25 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getAnalytics } from "firebase/analytics";
 
-// IMPORTANT: Replace these with your Firebase project's configuration
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyA0pLxKSxGc9W7yb9UezzlddlrkpI2UlKQ",
+  authDomain: "dandali-d54a8.firebaseapp.com",
+  projectId: "dandali-d54a8",
+  storageBucket: "dandali-d54a8.appspot.com", // Corrected to .appspot.com based on typical Firebase config
+  messagingSenderId: "445883547471",
+  appId: "1:445883547471:web:2280907ce001c6dacccf3a",
+  measurementId: "G-6RJZTL2B36"
 };
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
+// It's good practice to initialize analytics if measurementId is present, though it's not explicitly used elsewhere in the app yet.
+const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 
-export { app, auth, db };
+
+export { app, auth, db, analytics };
