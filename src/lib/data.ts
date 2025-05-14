@@ -1,23 +1,31 @@
 import type { User, Post, Comment } from '@/types';
 
+// Note: getCurrentUser is removed as auth will be handled by Firebase.
+// Mock data is kept for now for pages not yet migrated to Firestore.
+
 export const mockUsers: User[] = [
   {
-    id: '1',
+    id: '1', // This ID will be replaced by Firebase UID in a real scenario
+    uid: 'mock-user-1-uid', // Example UID
     username: 'adamu_garba',
     name: 'Adamu Garba',
+    email: 'adamu@example.com',
     avatarUrl: 'https://placehold.co/100x100.png',
     coverPhotoUrl: 'https://placehold.co/1000x300.png',
     bio: 'Dan kasuwa kuma mai son al\'umma. Ina son Hausa da al\'adunmu.',
     followersCount: 1500,
     followingCount: 250,
     postsCount: 120,
-    isCurrentUser: true,
+    isCurrentUser: true, // This logic will be handled by AuthContext
     isFollowedByCurrentUser: false,
+    createdAt: new Date().toISOString(),
   },
   {
     id: '2',
+    uid: 'mock-user-2-uid',
     username: 'fatima_bello',
     name: 'Fatima Bello',
+    email: 'fatima@example.com',
     avatarUrl: 'https://placehold.co/100x100.png',
     coverPhotoUrl: 'https://placehold.co/1000x300.png',
     bio: 'Student of Life. Sharing positivity and cultural insights. Love reading and writing.',
@@ -25,11 +33,14 @@ export const mockUsers: User[] = [
     followingCount: 300,
     postsCount: 85,
     isFollowedByCurrentUser: true,
+    createdAt: new Date().toISOString(),
   },
   {
     id: '3',
+    uid: 'mock-user-3-uid',
     username: 'sani_musa',
     name: 'Sani Musa',
+    email: 'sani@example.com',
     avatarUrl: 'https://placehold.co/100x100.png',
     coverPhotoUrl: 'https://placehold.co/1000x300.png',
     bio: 'Tech enthusiast and entrepreneur. Building the future of Arewa.',
@@ -37,6 +48,7 @@ export const mockUsers: User[] = [
     followingCount: 100,
     postsCount: 30,
     isFollowedByCurrentUser: false,
+    createdAt: new Date().toISOString(),
   },
 ];
 
@@ -90,5 +102,3 @@ export const mockPosts: Post[] = [
     comments: [],
   },
 ];
-
-export const getCurrentUser = (): User => mockUsers[0];

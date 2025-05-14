@@ -1,43 +1,97 @@
+// src/app/(main)/[username]/page.tsx
+'use client'; // Needs to be client for hooks and data fetching for now
+
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { ProfileHeader } from "@/components/profile-header";
 import { PostCard } from "@/components/post-card";
-import { mockUsers, mockPosts, getCurrentUser } from "@/lib/data";
-import type { User } from "@/types";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { mockUsers, mockPosts } from "@/lib/data"; // Still using mock data for now
+import type { User, Post as PostType } from "@/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from '@/contexts/auth-context';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import { Loader2 } from 'lucide-react';
 
-// This is a server component, so params are available directly
-export default async function UserProfilePage({ params }: { params: { username: string } }) {
-  const { username } = params;
-  // Find user by username from mock data
-  // In a real app, you would fetch this data from your backend
-  let user: User | undefined = mockUsers.find(u => u.username === username);
-  const currentUser = getCurrentUser();
+export default function UserProfilePage() {
+  const params = useParams();
+  const username = params.username as string;
+  const { currentUser: authUser, loading: authLoading } = useAuth();
+  
+  const [user, setUser] = useState<User | null>(null);
+  const [userPosts, setUserPosts] = useState<PostType[]>([]);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!username) return;
+      setLoadingProfile(true);
+      
+      // TODO: In a real app, you would query Firestore for the user by `username`.
+      // This requires an index on the 'username' field in your 'users' collection.
+      // For now, we'll find the user from mock data if it's not the authUser's profile.
+      // And simulate fetching the authUser's profile data from Firestore.
+
+      if (authUser && authUser.username === username) {
+        // Viewing own profile
+        const userRef = doc(db, "users", authUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          setUser({ ...userSnap.data(), isCurrentUser: true } as User);
+        } else {
+          // This shouldn't happen if user profile is created on signup
+          console.error("Auth user profile not found in Firestore");
+          setUser(null);
+        }
+      } else {
+        // Viewing another user's profile - still using mock for this part
+        const foundUser = mockUsers.find(u => u.username === username);
+        if (foundUser) {
+          setUser({ 
+            ...foundUser, 
+            isCurrentUser: false,
+            // Mock follow status, would come from DB
+            isFollowedByCurrentUser: authUser ? Math.random() > 0.5 : false 
+          });
+        } else {
+          setUser(null);
+        }
+      }
+      setLoadingProfile(false);
+    };
+
+    if (!authLoading) { // Wait for auth state to be resolved
+      fetchUserProfile();
+    }
+  }, [username, authUser, authLoading]);
+
+  useEffect(() => {
+    if (user) {
+      // Filter posts by the user - still using mock posts
+      // TODO: Fetch posts from Firestore where authorUid === user.uid
+      const posts = mockPosts.filter(post => post.author.id === user?.id);
+      setUserPosts(posts);
+    } else {
+      setUserPosts([]);
+    }
+  }, [user]);
+
+  if (authLoading || loadingProfile) {
+    return (
+      <div className="container mx-auto max-w-3xl py-8 px-2 sm:px-4 text-center flex justify-center items-center min-h-[calc(100vh-200px)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!user) {
-    // Handle user not found, e.g., show a 404 page or redirect
-    // For now, let's assume the current user if no specific user found (for demo)
-    // or create a specific not found display
-     return (
+    return (
       <div className="container mx-auto max-w-3xl py-8 px-2 sm:px-4 text-center">
         <h1 className="text-2xl font-bold">User not found</h1>
         <p className="text-muted-foreground">The profile for @{username} could not be located.</p>
       </div>
     );
   }
-  
-  // If viewing own profile, set isCurrentUser flag
-  if (user.id === currentUser.id) {
-    user = { ...user, isCurrentUser: true };
-  } else {
-    // Determine if current user follows this profile user
-    // This is mocked. In a real app, this info would come from the backend.
-    const isFollowed = Math.random() > 0.5; // Randomly assign for demo
-    user = { ...user, isFollowedByCurrentUser: isFollowed };
-  }
-
-
-  // Filter posts by the user
-  const userPosts = mockPosts.filter(post => post.author.id === user?.id);
 
   return (
     <div className="container mx-auto max-w-3xl py-8 px-2 sm:px-4">
@@ -58,30 +112,21 @@ export default async function UserProfilePage({ params }: { params: { username: 
               </div>
             ) : (
               <div className="text-center py-10">
-                <p className="text-muted-foreground">This user hasn't posted anything yet.</p>
+                <p className="text-muted-foreground">This user hasn&apos;t posted anything yet.</p>
               </div>
             )}
         </TabsContent>
         <TabsContent value="media">
           <div className="text-center py-10">
             <p className="text-muted-foreground">Media content will appear here.</p>
-            {/* Placeholder for media grid */}
           </div>
         </TabsContent>
         <TabsContent value="likes">
           <div className="text-center py-10">
             <p className="text-muted-foreground">Posts liked by this user will appear here.</p>
-            {/* Placeholder for liked posts */}
           </div>
         </TabsContent>
       </Tabs>
     </div>
   );
 }
-
-// Optional: Generate static paths if you have a known list of users
-// export async function generateStaticParams() {
-//   return mockUsers.map(user => ({
-//     username: user.username,
-//   }));
-// }

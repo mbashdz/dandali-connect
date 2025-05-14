@@ -3,10 +3,9 @@ import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
+import { AuthProvider } from '@/contexts/auth-context'; // Import AuthProvider
 import { Toaster } from "@/components/ui/toaster";
 
-// GeistSans and GeistMono from 'geist/font' are used directly.
-// Their .variable property provides the CSS variable name (e.g., '--font-geist-sans').
 
 export const metadata: Metadata = {
   title: 'Dandali Connect',
@@ -20,14 +19,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased`} suppressHydrationWarning={true}>
+      <body 
+        className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
+        suppressHydrationWarning={true}
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <AuthProvider> {/* Wrap children with AuthProvider */}
+            {children}
+          </AuthProvider>
           <Toaster />
         </ThemeProvider>
       </body>
