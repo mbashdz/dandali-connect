@@ -19,7 +19,7 @@ export default function NewsFeedPage() {
   const { toast } = useToast();
   const [postContent, setPostContent] = useState("");
   const [isPosting, setIsPosting] = useState(false);
-  const [posts, setPosts] = useState<PostType[]>([]);
+  const [posts, setPosts] =useState<PostType[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
 
   const getInitials = (name?: string) => {
@@ -30,15 +30,18 @@ export default function NewsFeedPage() {
   };
   
   const fetchPosts = useCallback(async () => {
+    console.log("[NewsFeedPage] fetchPosts called.");
     setIsLoadingPosts(true);
     try {
       const fetchedPosts = await getGlobalPosts();
       setPosts(fetchedPosts);
+      console.log("[NewsFeedPage] Posts fetched:", fetchedPosts.length);
     } catch (error) {
-      console.error("Error fetching posts:", error);
+      console.error("[NewsFeedPage] Error fetching posts:", error);
       toast({ variant: "destructive", title: "Error", description: "Could not load posts." });
     } finally {
       setIsLoadingPosts(false);
+      console.log("[NewsFeedPage] fetchPosts finished. isLoadingPosts:", false);
     }
   }, [toast]);
 
@@ -47,38 +50,48 @@ export default function NewsFeedPage() {
   }, [fetchPosts]);
 
   const handlePostSubmit = async () => {
+    console.log("[NewsFeedPage] handlePostSubmit called. Current post content:", postContent);
     if (!postContent.trim()) {
       toast({
         variant: "destructive",
         title: "Cannot create empty post",
         description: "Please write something to post.",
       });
+      console.warn("[NewsFeedPage] Post content is empty.");
       return;
     }
-    if (!currentUser) {
-      toast({ variant: "destructive", title: "Not Authenticated", description: "You must be logged in to post." });
+    
+    console.log("[NewsFeedPage] Current user state before posting:", currentUser);
+    if (!currentUser || !currentUser.uid || !currentUser.username || !currentUser.name) {
+      toast({ variant: "destructive", title: "Not Authenticated", description: "You must be logged in to post, or user data is incomplete." });
+      console.error("[NewsFeedPage] User not authenticated or user data (uid, username, name) is missing. currentUser:", currentUser);
+      setIsPosting(false); // Ensure isPosting is reset if we return early
       return;
     }
+
     setIsPosting(true);
+    console.log("[NewsFeedPage] Attempting to create post. User UID:", currentUser.uid);
     try {
       await createPost({
         content: postContent,
         authorUid: currentUser.uid,
         authorUsername: currentUser.username,
         authorName: currentUser.name,
-        authorAvatarUrl: currentUser.avatarUrl,
+        authorAvatarUrl: currentUser.avatarUrl || 'https://placehold.co/100x100.png', // Ensure fallback
       });
       toast({
         title: "Post Submitted!",
         description: "Your post has been successfully submitted.",
       });
+      console.log("[NewsFeedPage] Post submitted successfully.");
       setPostContent(""); 
       fetchPosts(); // Refresh posts list
-    } catch (error) {
-      console.error("Error creating post:", error);
-      toast({ variant: "destructive", title: "Post Failed", description: "Could not submit your post." });
+    } catch (error: any) {
+      console.error("[NewsFeedPage] Error creating post:", error.message, error.code, error);
+      toast({ variant: "destructive", title: "Post Failed", description: "Could not submit your post. Check console for details." });
     } finally {
       setIsPosting(false);
+      console.log("[NewsFeedPage] handlePostSubmit finished. isPosting:", false);
     }
   };
 

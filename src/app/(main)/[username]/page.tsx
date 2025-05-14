@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { EditProfileForm } from '@/components/edit-profile-form';
 import { useAuth } from '@/contexts/auth-context';
-import { updateUserProfile, getUserProfileByUsername } from '@/lib/firebase/users'; // Updated import
+import { updateUserProfile, getUserProfileByUsername } from '@/lib/firebase/users'; 
 import { getUserPosts } from '@/lib/firebase/posts';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -60,45 +60,51 @@ export default function UserProfilePage() {
       }
     } catch (error: any) {
       console.error("[UserProfilePage] Error fetching user profile or posts:", error.message, error.code, error);
-      toast({ variant: "destructive", title: "Error", description: "Could not load profile or posts." });
+      toast({ variant: "destructive", title: "Error", description: "Could not load profile or posts. Check console." });
       setProfileUser(null);
       setUserPosts([]);
     } finally {
       setLoadingProfile(false);
       setLoadingPosts(false);
-      console.log(`[UserProfilePage] Finished fetching profile and posts for ${usernameFromUrl}`);
+      console.log(`[UserProfilePage] Finished fetching profile and posts for ${usernameFromUrl}. LoadingProfile: false, LoadingPosts: false.`);
     }
   }, [usernameFromUrl, authUser, toast]);
 
   useEffect(() => {
-    console.log("[UserProfilePage] Auth loading state:", authLoading);
+    console.log("[UserProfilePage] Auth loading state:", authLoading, "Auth user UID:", authUser?.uid);
     if (!authLoading) { 
       fetchUserProfileAndPosts();
     }
-  }, [authLoading, fetchUserProfileAndPosts]);
+  }, [authLoading, authUser, fetchUserProfileAndPosts]);
 
 
   const handleOpenEditDialog = () => setIsEditingProfile(true);
   const handleCloseEditDialog = () => setIsEditingProfile(false);
 
   const handleSaveProfile = async (data: Partial<User>) => {
+    console.log("[UserProfilePage] handleSaveProfile called. Data to save:", data);
+    console.log("[UserProfilePage] Current authUser state before saving profile:", authUser);
+
     if (!profileUser || !authUser || profileUser.uid !== authUser.uid) {
-      console.warn("[UserProfilePage] Save profile aborted: conditions not met.", { profileUser, authUser });
+      console.warn("[UserProfilePage] Save profile aborted: conditions not met.", { profileUserUid: profileUser?.uid, authUserUid: authUser?.uid });
+      toast({ variant: "destructive", title: "Error", description: "Cannot save profile. You might not be authorized or data is missing." });
       return;
     }
-    console.log("[UserProfilePage] Saving profile for user:", authUser.uid, "Data:", data);
+    console.log("[UserProfilePage] Saving profile for user UID:", authUser.uid);
     setIsSavingProfile(true);
     try {
       await updateUserProfile(authUser.uid, data);
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
+      console.log("[UserProfilePage] Profile saved successfully. Re-fetching profile...");
       await fetchUserProfileAndPosts(); 
       setIsEditingProfile(false);
-      console.log("[UserProfilePage] Profile saved and re-fetched successfully.");
+      console.log("[UserProfilePage] Profile re-fetched successfully.");
     } catch (error: any) {
       console.error("[UserProfilePage] Error updating profile:", error.message, error.code, error);
-      toast({ variant: "destructive", title: "Update Failed", description: "Could not update your profile." });
+      toast({ variant: "destructive", title: "Update Failed", description: "Could not update your profile. Check console for details." });
     } finally {
       setIsSavingProfile(false);
+      console.log("[UserProfilePage] handleSaveProfile finished. isSavingProfile:", false);
     }
   };
 
