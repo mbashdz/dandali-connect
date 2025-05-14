@@ -1,6 +1,6 @@
 
 // src/lib/firebase/posts.ts
-import { db } from './config';
+import { auth, db } from './config'; // Ensure auth is imported
 import { 
   collection, 
   addDoc, 
@@ -12,10 +12,10 @@ import {
   where, 
   orderBy, 
   getDocs,
-  getDoc, // Added
+  getDoc,
   serverTimestamp,
-  arrayUnion, // Added
-  arrayRemove, // Added
+  arrayUnion,
+  arrayRemove,
   limit
 } from 'firebase/firestore';
 import type { Post, Comment as CommentType } from '@/types';
@@ -32,24 +32,45 @@ interface CreatePostData {
 }
 
 export const createPost = async (postData: CreatePostData): Promise<string> => {
+  const firebaseAuthCurrentUser = auth.currentUser; // Get current user from Firebase Auth SDK
   console.log("[createPost] Called. Data received:", JSON.stringify(postData));
-  
+  console.log("[createPost] Firebase Auth SDK currentUser UID at function start:", firebaseAuthCurrentUser?.uid);
+
   if (!postData.authorUid) {
-    console.error("[createPost] CRITICAL: Author UID is missing in postData. Aborting.");
+    console.error("[createPost] CRITICAL: Author UID (from postData) is missing. Aborting.");
     throw new Error("Author UID is required to create a post.");
   }
-  console.log("[createPost] Verified authorUid:", postData.authorUid);
+  
+  if (!firebaseAuthCurrentUser) {
+    console.error(
+      `[createPost] Firebase Auth SDK currentUser is null. User might not be authenticated. postData.authorUid: ${postData.authorUid}. Aborting.`
+    );
+    throw new Error(
+      "User not authenticated according to Firebase SDK. Cannot create post."
+    );
+  }
+  
+  if (firebaseAuthCurrentUser.uid !== postData.authorUid) {
+    console.error(
+      `[createPost] Mismatch in UIDs: Firebase Auth SDK UID: ${firebaseAuthCurrentUser.uid}, postData.authorUid: ${postData.authorUid}. Aborting.`
+    );
+    throw new Error(
+      "Authentication mismatch: UID from auth context does not match Firebase SDK's current user UID."
+    );
+  }
+  console.log("[createPost] Verified authorUid from postData:", postData.authorUid, "matches Firebase Auth SDK currentUser.uid:", firebaseAuthCurrentUser.uid);
 
   try {
-    console.log("[createPost] Attempting to add document to 'posts' collection...");
     const postPayload = {
       ...postData,
       likesCount: 0,
-      likedBy: [], // Initialize likedBy array
+      likedBy: [],
       commentsCount: 0,
       timestamp: serverTimestamp(), 
     };
     console.log("[createPost] Payload for new post:", JSON.stringify(postPayload));
+    
+    console.log("[createPost] Attempting to add document to 'posts' collection...");
     const postRef = await addDoc(collection(db, 'posts'), postPayload);
     console.log("[createPost] Post document created successfully with ID:", postRef.id);
 
@@ -61,10 +82,10 @@ export const createPost = async (postData: CreatePostData): Promise<string> => {
     console.log("[createPost] Successfully incremented postsCount for user:", postData.authorUid);
 
     return postRef.id;
-  } catch (error: any) {
-    console.error("[createPost] Error during Firestore operation:", error.message, "Code:", error.code, "Details:", error);
-    if (error.code === 'permission-denied' || error.message.toLowerCase().includes('permission denied')) {
-      console.error("[createPost] Firestore permission denied. Check security rules for 'posts' collection (create) and 'users' collection (update for postsCount). Ensure authorUid in postData matches authenticated user's UID if rules require it.");
+  } catch (error: any) { // This is line 64 in your original file structure
+    console.error("[createPost] Error during Firestore operation:", error.message, "Code:", error.code, "Details:", error); // This is line 65
+    if (error.code === 'permission-denied' || (error.message && error.message.toLowerCase().includes('permission denied'))) {
+      console.error("[createPost] Firestore permission denied. Detailed error above. Check security rules for 'posts' collection (create operation) and 'users' collection (update operation for postsCount). Ensure authorUid in postData matches authenticated user's UID as per Firebase Auth SDK. SDK UID was:", firebaseAuthCurrentUser?.uid);
     }
     throw error; 
   }
@@ -87,7 +108,7 @@ export const getGlobalPosts = async (limitCount: number = 20): Promise<Post[]> =
         id: doc.id, 
         ...data,
         timestamp: postTimestamp,
-        likedBy: data.likedBy || [], // Ensure likedBy exists
+        likedBy: data.likedBy || [],
       } as Post);
     });
     console.log("[getGlobalPosts] Processed posts:", posts.length);
@@ -122,7 +143,7 @@ export const getUserPosts = async (authorUid: string): Promise<Post[]> => {
         id: doc.id, 
         ...data,
         timestamp: postTimestamp,
-        likedBy: data.likedBy || [], // Ensure likedBy exists
+        likedBy: data.likedBy || [],
       } as Post);
     });
     console.log("[getUserPosts] Processed posts for user:", authorUid, "Count:", posts.length);
@@ -137,7 +158,13 @@ export const getUserPosts = async (authorUid: string): Promise<Post[]> => {
 };
 
 export const toggleLikePost = async (postId: string, userId: string): Promise<{ likesCount: number; likedBy: string[] }> => {
-  console.log(`[toggleLikePost] User ${userId} attempting to toggle like for post ${postId}`);
+  const firebaseAuthCurrentUser = auth.currentUser;
+  console.log(`[toggleLikePost] User ${userId} (SDK UID: ${firebaseAuthCurrentUser?.uid}) attempting to toggle like for post ${postId}`);
+  if (!firebaseAuthCurrentUser || firebaseAuthCurrentUser.uid !== userId) {
+    console.error(`[toggleLikePost] Auth mismatch or SDK user null. SDK UID: ${firebaseAuthCurrentUser?.uid}, provided userId: ${userId}`);
+    throw new Error("Authentication mismatch or user not properly authenticated for toggling like.");
+  }
+
   const postRef = doc(db, 'posts', postId);
   try {
     const postSnap = await getDoc(postRef);
@@ -150,7 +177,6 @@ export const toggleLikePost = async (postId: string, userId: string): Promise<{ 
     let updatedLikedBy;
 
     if (currentlyLikedBy.includes(userId)) {
-      // User is unliking the post
       console.log(`[toggleLikePost] User ${userId} is unliking post ${postId}`);
       await updateDoc(postRef, {
         likedBy: arrayRemove(userId),
@@ -159,7 +185,6 @@ export const toggleLikePost = async (postId: string, userId: string): Promise<{ 
       updatedLikesCount = Math.max(0, (postData.likesCount || 0) - 1);
       updatedLikedBy = currentlyLikedBy.filter(uid => uid !== userId);
     } else {
-      // User is liking the post
       console.log(`[toggleLikePost] User ${userId} is liking post ${postId}`);
       await updateDoc(postRef, {
         likedBy: arrayUnion(userId),
@@ -173,7 +198,7 @@ export const toggleLikePost = async (postId: string, userId: string): Promise<{ 
   } catch (error: any) {
     console.error(`[toggleLikePost] Error toggling like for post ${postId} by user ${userId}:`, error.message, error.code, error);
     if (error.code === 'permission-denied') {
-      console.error(`[toggleLikePost] Firestore permission denied. Check security rules for 'posts' collection (update - likedBy, likesCount).`);
+      console.error(`[toggleLikePost] Firestore permission denied. Check security rules for 'posts' collection (update - likedBy, likesCount). SDK UID was: ${firebaseAuthCurrentUser?.uid}`);
     }
     throw error;
   }
@@ -189,10 +214,17 @@ export const addCommentToPost = async (
     content: string;
   }
 ): Promise<CommentType> => {
-  console.log(`[addCommentToPost] User ${commentData.authorUid} attempting to comment on post ${postId}`);
+  const firebaseAuthCurrentUser = auth.currentUser;
+  console.log(`[addCommentToPost] User ${commentData.authorUid} (SDK UID: ${firebaseAuthCurrentUser?.uid}) attempting to comment on post ${postId}`);
+  
   if (!commentData.authorUid || !commentData.content.trim()) {
-    throw new Error("Author and content are required for a comment.");
+    throw new Error("Author UID and content are required for a comment.");
   }
+  if (!firebaseAuthCurrentUser || firebaseAuthCurrentUser.uid !== commentData.authorUid) {
+     console.error(`[addCommentToPost] Auth mismatch or SDK user null. SDK UID: ${firebaseAuthCurrentUser?.uid}, commentData.authorUid: ${commentData.authorUid}`);
+    throw new Error("Authentication mismatch or user not properly authenticated for adding comment.");
+  }
+
   const postRef = doc(db, 'posts', postId);
   const commentsRef = collection(postRef, 'comments');
   
@@ -202,15 +234,16 @@ export const addCommentToPost = async (
       postId: postId,
       timestamp: serverTimestamp(),
     };
+    console.log(`[addCommentToPost] Payload for new comment: ${JSON.stringify(newCommentPayload)}`);
     const commentDocRef = await addDoc(commentsRef, newCommentPayload);
     console.log(`[addCommentToPost] Comment added to post ${postId} with ID ${commentDocRef.id}`);
     
+    console.log(`[addCommentToPost] Attempting to increment commentsCount for post ${postId}`);
     await updateDoc(postRef, {
       commentsCount: increment(1)
     });
     console.log(`[addCommentToPost] Incremented commentsCount for post ${postId}`);
 
-    // To return the full comment object with server timestamp resolved
     const commentSnap = await getDoc(commentDocRef);
     const newComment = commentSnap.data();
     const commentTimestamp = newComment?.timestamp instanceof Timestamp ? newComment.timestamp.toDate().toISOString() : new Date().toISOString();
@@ -224,7 +257,7 @@ export const addCommentToPost = async (
   } catch (error: any) {
     console.error(`[addCommentToPost] Error adding comment to post ${postId} by user ${commentData.authorUid}:`, error.message, error.code, error);
     if (error.code === 'permission-denied') {
-      console.error(`[addCommentToPost] Firestore permission denied. Check security rules for 'posts/${postId}/comments' (create) and 'posts' (update - commentsCount).`);
+      console.error(`[addCommentToPost] Firestore permission denied. Check security rules for 'posts/${postId}/comments' (create) and 'posts' (update - commentsCount). SDK UID was: ${firebaseAuthCurrentUser?.uid}`);
     }
     throw error;
   }
@@ -233,7 +266,7 @@ export const addCommentToPost = async (
 export const getPostComments = async (postId: string): Promise<CommentType[]> => {
   console.log(`[getPostComments] Attempting to fetch comments for post ${postId}`);
   const commentsRef = collection(db, 'posts', postId, 'comments');
-  const q = query(commentsRef, orderBy('timestamp', 'asc')); // Fetch comments in chronological order
+  const q = query(commentsRef, orderBy('timestamp', 'asc'));
   
   try {
     const querySnapshot = await getDocs(q);
