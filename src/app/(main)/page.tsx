@@ -2,25 +2,30 @@
 // src/app/(main)/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { PostCard } from "@/components/post-card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Image as ImageIcon, Mic, Send, Loader2 } from "lucide-react";
+import { PlusCircle, Image as ImageIcon, Mic, Send, Loader2, FileImage, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { createPost, getGlobalPosts } from '@/lib/firebase/posts';
+import { uploadFile } from '@/lib/firebase/storage'; // Import uploadFile
 import type { Post as PostType } from '@/types';
+import NextImage from 'next/image'; // For image preview
 
 export default function NewsFeedPage() {
-  const { currentUser, loading: authLoading } = useAuth(); // Added authLoading
+  const { currentUser, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [postContent, setPostContent] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isPosting, setIsPosting] = useState(false);
   const [posts, setPosts] =useState<PostType[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const getInitials = (name?: string) => {
     if (!name) return "DC";
@@ -46,24 +51,39 @@ export default function NewsFeedPage() {
   }, [toast]);
 
   useEffect(() => {
-    // Fetch posts only if auth is not loading and user is available (or app allows anonymous post viewing)
-    // For now, assuming posts are viewable by authenticated users.
     if (!authLoading) {
         fetchPosts();
     }
   }, [authLoading, fetchPosts]);
 
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ""; // Reset file input
+    }
+  };
+
   const handlePostSubmit = async () => {
     console.log("[NewsFeedPage] handlePostSubmit called. Current post content:", postContent);
-    console.log("[NewsFeedPage] Current auth state: currentUser exists:", !!currentUser, "UID:", currentUser?.uid, "Username:", currentUser?.username, "Name:", currentUser?.name);
+    console.log("[NewsFeedPage] Current auth state: currentUser exists:", !!currentUser, "UID:", currentUser?.uid);
+    console.log("[NewsFeedPage] Image file selected:", imageFile?.name);
 
-    if (!postContent.trim()) {
+    if (!postContent.trim() && !imageFile) {
       toast({
         variant: "destructive",
         title: "Cannot create empty post",
-        description: "Please write something to post.",
+        description: "Please write something or add an image to post.",
       });
-      console.warn("[NewsFeedPage] Post content is empty. Aborting.");
+      console.warn("[NewsFeedPage] Post content and image are empty. Aborting.");
       return;
     }
     
@@ -75,14 +95,24 @@ export default function NewsFeedPage() {
     }
 
     setIsPosting(true);
-    console.log(`[NewsFeedPage] Attempting to create post for user UID: ${currentUser.uid}, Username: ${currentUser.username}, Name: ${currentUser.name}`);
+    let imageUrl: string | undefined = undefined;
+
     try {
+      if (imageFile) {
+        console.log("[NewsFeedPage] Uploading image...");
+        imageUrl = await uploadFile(imageFile, `postImages/${currentUser.uid}`);
+        console.log("[NewsFeedPage] Image uploaded, URL:", imageUrl);
+      }
+
+      console.log(`[NewsFeedPage] Attempting to create post for user UID: ${currentUser.uid}, Username: ${currentUser.username}, Name: ${currentUser.name}`);
       await createPost({
         content: postContent,
-        authorUid: currentUser.uid, // Crucial for Firestore rules
+        authorUid: currentUser.uid,
         authorUsername: currentUser.username,
         authorName: currentUser.name,
         authorAvatarUrl: currentUser.avatarUrl || 'https://placehold.co/100x100.png', 
+        imageUrl: imageUrl,
+        // voiceNoteUrl: undefined, // Add logic for voice notes later
       });
       toast({
         title: "Post Submitted!",
@@ -90,6 +120,7 @@ export default function NewsFeedPage() {
       });
       console.log("[NewsFeedPage] Post submitted successfully for user:", currentUser.uid);
       setPostContent(""); 
+      removeImage(); // Clear image selection
       fetchPosts(); 
     } catch (error: any) {
       console.error("[NewsFeedPage] Error creating post:", error.message, error.code, error);
@@ -100,7 +131,7 @@ export default function NewsFeedPage() {
     }
   };
 
-  if (authLoading) { // Show loader if auth is still loading
+  if (authLoading) {
     return (
       <div className="container mx-auto max-w-2xl py-8 px-2 sm:px-4 text-center flex justify-center items-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -111,7 +142,7 @@ export default function NewsFeedPage() {
   return (
     <div className="container mx-auto max-w-2xl py-8 px-2 sm:px-4">
       <div className="space-y-6">
-        {currentUser && ( // Only show create post card if user is logged in
+        {currentUser && (
           <Card className="shadow-lg rounded-xl">
             <CardHeader className="p-4 pb-2">
               <div className="flex items-center space-x-3">
@@ -130,20 +161,51 @@ export default function NewsFeedPage() {
                 onChange={(e) => setPostContent(e.target.value)}
                 disabled={isPosting}
               />
+              {imagePreview && (
+                <div className="mb-3 relative w-full max-w-xs sm:max-w-sm md:max-w-md">
+                  <NextImage src={imagePreview} alt="Image preview" width={400} height={300} className="rounded-md object-contain max-h-60" data-ai-hint="image preview"/>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6"
+                    onClick={removeImage}
+                    disabled={isPosting}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+               <input
+                type="file"
+                accept="image/*"
+                ref={imageInputRef}
+                onChange={handleImageChange}
+                className="hidden"
+                disabled={isPosting}
+              />
               <div className="flex justify-between items-center">
                 <div className="flex space-x-1 sm:space-x-2">
-                  <Button variant="ghost" size="sm" className="px-2 sm:px-3" disabled={isPosting}>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="px-2 sm:px-3" 
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={isPosting || !!imagePreview} // Disable if image already selected
+                  >
                     <ImageIcon className="h-4 w-4 sm:mr-1" />
                     <span className="hidden sm:inline">Photo/Video</span>
                   </Button>
-                   <Button variant="ghost" size="sm" className="px-2 sm:px-3" disabled={isPosting}>
+                   <Button variant="ghost" size="sm" className="px-2 sm:px-3" disabled={isPosting} title="Voice recording coming soon!">
                       <Mic className="h-4 w-4 sm:mr-1" />
                       <span className="hidden sm:inline">Voice</span>
                    </Button>
                 </div>
-                <Button onClick={handlePostSubmit} disabled={isPosting || !postContent.trim() || !currentUser}>
+                <Button 
+                  onClick={handlePostSubmit} 
+                  disabled={isPosting || (!postContent.trim() && !imageFile) || !currentUser}
+                >
                   {isPosting ? (
-                    <Send className="mr-2 h-4 w-4 animate-pulse" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <PlusCircle className="mr-2 h-4 w-4" />
                   )}

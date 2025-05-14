@@ -28,7 +28,7 @@ export function UserNav() {
     try {
       await doSignOut();
       toast({ title: "Logged Out", description: "You have been successfully logged out." });
-      router.push('/login');
+      router.push('/login'); // Ensure router.push for navigation
     } catch (error: any) {
       console.error("Logout failed:", error);
       toast({
@@ -55,11 +55,11 @@ export function UserNav() {
     );
   }
 
-  const getInitials = (name?: string) => { // Changed name to be optional
-    if (!name) return "DC"; // Default initials
+  const getInitials = (name?: string) => {
+    if (!name) return "DC"; 
     const names = name.split(' ');
     if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
-    return names[0][0].toUpperCase() + (names[names.length - 1][0]?.toUpperCase() || '');
+    return (names[0]?.[0] || '').toUpperCase() + (names[names.length - 1]?.[0] || '').toUpperCase();
   };
 
   const profileLinkEnabled = !!currentUser.username;
@@ -92,9 +92,11 @@ export function UserNav() {
               {!profileLinkEnabled && <Loader2 className="ml-2 h-3 w-3 animate-spin" />}
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem disabled> {/* Placeholder for settings */}
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
+          <DropdownMenuItem asChild>
+            <Link href="/settings">
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

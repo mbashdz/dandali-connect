@@ -7,12 +7,12 @@ import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { MessageCircle, Heart, Share2, Send, MoreHorizontal } from "lucide-react"
+import { MessageCircle, Heart, Share2, Send, MoreHorizontal, Mic } from "lucide-react" // Added Mic
 import { formatDistanceToNowStrict } from 'date-fns'
 import { useState, useEffect } from "react"
 import { Textarea } from "@/components/ui/textarea" 
 import { Separator } from "@/components/ui/separator"
-import { useAuth } from "@/contexts/auth-context" // For current user's avatar in comment input
+import { useAuth } from "@/contexts/auth-context" 
 
 
 interface PostCardProps {
@@ -24,19 +24,25 @@ export function PostCard({ post }: PostCardProps) {
   const [timestamp, setTimestamp] = useState('');
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState("");
-  const [isLiked, setIsLiked] = useState(post.isLikedByCurrentUser || false); // Default to false if undefined
+  const [isLiked, setIsLiked] = useState(post.isLikedByCurrentUser || false); 
   const [likesCount, setLikesCount] = useState(post.likesCount || 0);
-  const [comments, setComments] = useState<CommentType[]>(post.comments || []); // Initialize with post comments or empty array
+  const [comments, setComments] = useState<CommentType[]>(post.comments || []);
   const [commentsCount, setCommentsCount] = useState(post.commentsCount || 0);
 
 
   useEffect(() => {
     if (post.timestamp) {
       try {
-        setTimestamp(formatDistanceToNowStrict(new Date(post.timestamp), { addSuffix: true }));
+        const date = new Date(post.timestamp);
+        // Check if date is valid before formatting
+        if (!isNaN(date.getTime())) {
+          setTimestamp(formatDistanceToNowStrict(date, { addSuffix: true }));
+        } else {
+          setTimestamp("just now"); // Fallback for invalid date string
+        }
       } catch (e) {
-        console.warn("Error formatting post timestamp:", e);
-        setTimestamp("just now"); // Fallback for invalid date
+        console.warn("Error formatting post timestamp:", e, "Timestamp value:", post.timestamp);
+        setTimestamp("just now"); 
       }
     } else {
       setTimestamp("unknown time");
@@ -61,14 +67,12 @@ export function PostCard({ post }: PostCardProps) {
     e.preventDefault();
     if (!newComment.trim() || !currentUser) return;
 
-    // TODO: Implement actual comment submission to Firestore
-    // For now, mock adding comment to local state
     const mockComment: CommentType = {
       id: `mockcomment_${Date.now()}`,
       authorUid: currentUser.uid,
-      authorUsername: currentUser.username,
-      authorName: currentUser.name,
-      authorAvatarUrl: currentUser.avatarUrl,
+      authorUsername: currentUser.username || 'anonymous',
+      authorName: currentUser.name || 'Anonymous',
+      authorAvatarUrl: currentUser.avatarUrl || 'https://placehold.co/100x100.png',
       content: newComment,
       timestamp: new Date().toISOString(),
       postId: post.id,
@@ -101,24 +105,27 @@ export function PostCard({ post }: PostCardProps) {
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-3 pt-0">
-        <p className="text-sm whitespace-pre-wrap">{post.content}</p>
+        {post.content && <p className="text-sm whitespace-pre-wrap mb-3">{post.content}</p>}
         {post.imageUrl && (
-          <div className="mt-3 rounded-lg overflow-hidden border">
+          <div className="mt-3 rounded-lg overflow-hidden border aspect-video relative">
             <Image
               src={post.imageUrl}
               alt="Post image"
-              width={600}
-              height={400}
-              className="object-cover w-full"
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
+              className="object-cover w-full h-full"
               data-ai-hint="social media content"
             />
           </div>
         )}
          {post.voiceNoteUrl && (
-          <div className="mt-3 p-3 bg-secondary rounded-lg flex items-center space-x-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mic"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-            <span className="text-sm text-secondary-foreground">Voice Post</span>
-            {/* TODO: Add audio player controls here */}
+          <div className="mt-3 p-3 bg-muted rounded-lg flex items-center space-x-3">
+            <Mic className="h-5 w-5 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Voice Post</span>
+            {/* Basic audio player - can be enhanced later */}
+            <audio controls src={post.voiceNoteUrl} className="w-full h-10">
+                Your browser does not support the audio element.
+            </audio>
           </div>
         )}
       </CardContent>
@@ -130,7 +137,7 @@ export function PostCard({ post }: PostCardProps) {
         <Separator />
         <div className="flex justify-around w-full pt-2">
           <Button variant="ghost" className="flex-1" onClick={handleLike}>
-            <Heart className={`mr-2 h-5 w-5 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} /> Like
+            <Heart className={`mr-2 h-5 w-5 ${isLiked ? 'fill-primary text-primary' : ''}`} /> Like
           </Button>
           <Button variant="ghost" className="flex-1" onClick={() => setShowComments(!showComments)}>
             <MessageCircle className="mr-2 h-5 w-5" /> Comment
@@ -145,7 +152,7 @@ export function PostCard({ post }: PostCardProps) {
             {currentUser && (
               <form onSubmit={handleCommentSubmit} className="flex items-center space-x-2 mb-4">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} data-ai-hint="user avatar comment" />
+                  <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name || ''} data-ai-hint="user avatar comment" />
                   <AvatarFallback>{getInitials(currentUser.name)}</AvatarFallback>
                 </Avatar>
                 <Textarea
