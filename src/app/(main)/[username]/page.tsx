@@ -11,10 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { EditProfileForm } from '@/components/edit-profile-form';
 import { useAuth } from '@/contexts/auth-context';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import { updateUserProfile } from '@/lib/firebase/users';
-import { getUserPosts } from '@/lib/firebase/posts'; // Import function to get user posts
+import { updateUserProfile, getUserProfileByUsername } from '@/lib/firebase/users'; // Updated import
+import { getUserPosts } from '@/lib/firebase/posts';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -33,18 +31,15 @@ export default function UserProfilePage() {
 
   const fetchUserProfileAndPosts = useCallback(async () => {
     if (!usernameFromUrl) return;
+    console.log(`[UserProfilePage] Fetching profile for username: ${usernameFromUrl}`);
     setLoadingProfile(true);
     setLoadingPosts(true);
 
     try {
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("username", "==", usernameFromUrl));
-      const querySnapshot = await getDocs(q);
+      const userData = await getUserProfileByUsername(usernameFromUrl);
 
-      if (!querySnapshot.empty) {
-        const userDoc = querySnapshot.docs[0];
-        const userData = { id: userDoc.id, ...userDoc.data() } as User;
-        
+      if (userData) {
+        console.log(`[UserProfilePage] User data found for ${usernameFromUrl}:`, userData);
         setProfileUser({
           ...userData,
           isCurrentUser: authUser?.uid === userData.uid,
@@ -52,29 +47,31 @@ export default function UserProfilePage() {
           isFollowedByCurrentUser: authUser ? Math.random() > 0.5 : false // Mock for now
         });
 
-        // Fetch user's posts
         if (userData.uid) {
+          console.log(`[UserProfilePage] Fetching posts for user UID: ${userData.uid}`);
           const posts = await getUserPosts(userData.uid);
           setUserPosts(posts);
+          console.log(`[UserProfilePage] Posts fetched for ${usernameFromUrl}:`, posts.length);
         }
-
       } else {
-        console.log("No such user!");
+        console.log(`[UserProfilePage] No user found for username: ${usernameFromUrl}`);
         setProfileUser(null);
         setUserPosts([]);
       }
-    } catch (error) {
-      console.error("Error fetching user profile or posts:", error);
+    } catch (error: any) {
+      console.error("[UserProfilePage] Error fetching user profile or posts:", error.message, error.code, error);
       toast({ variant: "destructive", title: "Error", description: "Could not load profile or posts." });
       setProfileUser(null);
       setUserPosts([]);
     } finally {
       setLoadingProfile(false);
       setLoadingPosts(false);
+      console.log(`[UserProfilePage] Finished fetching profile and posts for ${usernameFromUrl}`);
     }
   }, [usernameFromUrl, authUser, toast]);
 
   useEffect(() => {
+    console.log("[UserProfilePage] Auth loading state:", authLoading);
     if (!authLoading) { 
       fetchUserProfileAndPosts();
     }
@@ -85,15 +82,20 @@ export default function UserProfilePage() {
   const handleCloseEditDialog = () => setIsEditingProfile(false);
 
   const handleSaveProfile = async (data: Partial<User>) => {
-    if (!profileUser || !authUser || profileUser.uid !== authUser.uid) return;
+    if (!profileUser || !authUser || profileUser.uid !== authUser.uid) {
+      console.warn("[UserProfilePage] Save profile aborted: conditions not met.", { profileUser, authUser });
+      return;
+    }
+    console.log("[UserProfilePage] Saving profile for user:", authUser.uid, "Data:", data);
     setIsSavingProfile(true);
     try {
       await updateUserProfile(authUser.uid, data);
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
       await fetchUserProfileAndPosts(); 
       setIsEditingProfile(false);
-    } catch (error) {
-      console.error("Error updating profile:", error);
+      console.log("[UserProfilePage] Profile saved and re-fetched successfully.");
+    } catch (error: any) {
+      console.error("[UserProfilePage] Error updating profile:", error.message, error.code, error);
       toast({ variant: "destructive", title: "Update Failed", description: "Could not update your profile." });
     } finally {
       setIsSavingProfile(false);
@@ -126,7 +128,7 @@ export default function UserProfilePage() {
       
       <Tabs defaultValue="posts" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-4">
-          <TabsTrigger value="posts">Posts ({profileUser.postsCount || 0})</TabsTrigger>
+          <TabsTrigger value="posts">Posts ({profileUser.postsCount || userPosts.length || 0})</TabsTrigger>
           <TabsTrigger value="media">Media</TabsTrigger>
           <TabsTrigger value="likes">Likes</TabsTrigger>
         </TabsList>
