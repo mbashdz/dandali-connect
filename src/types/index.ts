@@ -7,6 +7,8 @@ export interface User {
   avatarUrl: string;
   coverPhotoUrl: string;
   bio: string;
+  location?: string; // New: User's location
+  website?: string; // New: User's website
   followersCount: number;
   followingCount: number;
   postsCount: number;

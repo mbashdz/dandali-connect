@@ -1,80 +1,102 @@
 // src/app/(main)/[username]/page.tsx
-'use client'; // Needs to be client for hooks and data fetching for now
+'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { ProfileHeader } from "@/components/profile-header";
 import { PostCard } from "@/components/post-card";
-import { mockUsers, mockPosts } from "@/lib/data"; // Still using mock data for now
+import { mockPosts, mockUsers } from "@/lib/data"; // Still using mock data for posts for now
 import type { User, Post as PostType } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { EditProfileForm } from '@/components/edit-profile-form';
 import { useAuth } from '@/contexts/auth-context';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
+import { updateUserProfile } from '@/lib/firebase/users'; // Ensure this path is correct
+import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
 export default function UserProfilePage() {
   const params = useParams();
-  const username = params.username as string;
+  const usernameFromUrl = params.username as string;
   const { currentUser: authUser, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   
-  const [user, setUser] = useState<User | null>(null);
-  const [userPosts, setUserPosts] = useState<PostType[]>([]);
+  const [profileUser, setProfileUser] = useState<User | null>(null);
+  const [userPosts, setUserPosts] = useState<PostType[]>([]); // TODO: Fetch actual posts
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  const fetchUserProfile = useCallback(async () => {
+    if (!usernameFromUrl) return;
+    setLoadingProfile(true);
+
+    try {
+      // Query for the user by username
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("username", "==", usernameFromUrl));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        const userData = { id: userDoc.id, ...userDoc.data() } as User;
+        
+        setProfileUser({
+          ...userData,
+          isCurrentUser: authUser?.uid === userData.uid,
+          // TODO: Implement isFollowedByCurrentUser logic from Firestore
+          isFollowedByCurrentUser: authUser ? Math.random() > 0.5 : false // Mock for now
+        });
+      } else {
+        console.log("No such user!");
+        setProfileUser(null);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not load profile." });
+      setProfileUser(null);
+    } finally {
+      setLoadingProfile(false);
+    }
+  }, [usernameFromUrl, authUser, toast]);
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (!username) return;
-      setLoadingProfile(true);
-      
-      // TODO: In a real app, you would query Firestore for the user by `username`.
-      // This requires an index on the 'username' field in your 'users' collection.
-      // For now, we'll find the user from mock data if it's not the authUser's profile.
-      // And simulate fetching the authUser's profile data from Firestore.
-
-      if (authUser && authUser.username === username) {
-        // Viewing own profile
-        const userRef = doc(db, "users", authUser.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          setUser({ ...userSnap.data(), isCurrentUser: true } as User);
-        } else {
-          // This shouldn't happen if user profile is created on signup
-          console.error("Auth user profile not found in Firestore");
-          setUser(null);
-        }
-      } else {
-        // Viewing another user's profile - still using mock for this part
-        const foundUser = mockUsers.find(u => u.username === username);
-        if (foundUser) {
-          setUser({ 
-            ...foundUser, 
-            isCurrentUser: false,
-            // Mock follow status, would come from DB
-            isFollowedByCurrentUser: authUser ? Math.random() > 0.5 : false 
-          });
-        } else {
-          setUser(null);
-        }
-      }
-      setLoadingProfile(false);
-    };
-
     if (!authLoading) { // Wait for auth state to be resolved
       fetchUserProfile();
     }
-  }, [username, authUser, authLoading]);
+  }, [authLoading, fetchUserProfile]);
 
   useEffect(() => {
-    if (user) {
-      // Filter posts by the user - still using mock posts
-      // TODO: Fetch posts from Firestore where authorUid === user.uid
-      const posts = mockPosts.filter(post => post.author.id === user?.id);
+    if (profileUser) {
+      // TODO: Fetch posts from Firestore where authorUid === profileUser.uid
+      const posts = mockPosts.filter(post => post.author.username === profileUser?.username); // Temporary mock filter
       setUserPosts(posts);
     } else {
       setUserPosts([]);
     }
-  }, [user]);
+  }, [profileUser]);
+
+  const handleOpenEditDialog = () => setIsEditingProfile(true);
+  const handleCloseEditDialog = () => setIsEditingProfile(false);
+
+  const handleSaveProfile = async (data: Partial<User>) => {
+    if (!profileUser || !authUser || profileUser.uid !== authUser.uid) return;
+    setIsSavingProfile(true);
+    try {
+      await updateUserProfile(authUser.uid, data);
+      toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
+      // Refresh profile data
+      await fetchUserProfile(); 
+      setIsEditingProfile(false);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast({ variant: "destructive", title: "Update Failed", description: "Could not update your profile." });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   if (authLoading || loadingProfile) {
     return (
@@ -84,18 +106,21 @@ export default function UserProfilePage() {
     );
   }
 
-  if (!user) {
+  if (!profileUser) {
     return (
       <div className="container mx-auto max-w-3xl py-8 px-2 sm:px-4 text-center">
         <h1 className="text-2xl font-bold">User not found</h1>
-        <p className="text-muted-foreground">The profile for @{username} could not be located.</p>
+        <p className="text-muted-foreground">The profile for @{usernameFromUrl} could not be located.</p>
       </div>
     );
   }
 
   return (
     <div className="container mx-auto max-w-3xl py-8 px-2 sm:px-4">
-      <ProfileHeader user={user} />
+      <ProfileHeader 
+        user={profileUser} 
+        onEditProfile={profileUser.isCurrentUser ? handleOpenEditDialog : undefined} 
+      />
       
       <Tabs defaultValue="posts" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-4">
@@ -127,6 +152,25 @@ export default function UserProfilePage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {profileUser.isCurrentUser && (
+        <Dialog open={isEditingProfile} onOpenChange={setIsEditingProfile}>
+          <DialogContent className="sm:max-w-[525px]">
+            <DialogHeader>
+              <DialogTitle>Edit Profile</DialogTitle>
+              <DialogDescription>
+                Make changes to your profile here. Click save when you&apos;re done.
+              </DialogDescription>
+            </DialogHeader>
+            <EditProfileForm 
+              user={profileUser} 
+              onSave={handleSaveProfile} 
+              onCancel={handleCloseEditDialog}
+              isSaving={isSavingProfile}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

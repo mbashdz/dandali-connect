@@ -20,7 +20,7 @@ export const createUserProfileDocument = async (firebaseUser: FirebaseUser, addi
   if (!snapshot.exists()) {
     const { email } = firebaseUser;
     const createdAt = new Date().toISOString();
-    const username = email?.split('@')[0] || `user_${Date.now()}`; // Basic username generation
+    const username = email?.split('@')[0]?.replace(/[^a-zA-Z0-9_]/g, '') || `user_${Date.now()}`; // Basic username generation
 
     try {
       await setDoc(userRef, {
@@ -31,6 +31,8 @@ export const createUserProfileDocument = async (firebaseUser: FirebaseUser, addi
         avatarUrl: 'https://placehold.co/100x100.png', // Default avatar
         coverPhotoUrl: 'https://placehold.co/1000x300.png', // Default cover
         bio: 'Welcome to Dandali Connect!',
+        location: '', // New field
+        website: '', // New field
         followersCount: 0,
         followingCount: 0,
         postsCount: 0,
@@ -59,32 +61,35 @@ export const doSignOut = async () => {
   return signOut(auth);
 };
 
-export const onAuthUserChanged = (callback: (user: User | null) => void) => {
+export const onAuthUserChanged = (callback: (user: User | null) => void, errorCallback?: (error: Error) => void) => {
   return onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
     if (firebaseUser) {
       const userRef = doc(db, `users/${firebaseUser.uid}`);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        callback(userSnap.data() as User);
-      } else {
-        // This case might happen if user doc creation failed or was delayed
-        // For now, we'll create it if it's missing, assuming basic info is enough
-        // Or, you might want to log them out / show an error.
-        try {
-            await createUserProfileDocument(firebaseUser);
-            const freshUserSnap = await getDoc(userRef);
-            if (freshUserSnap.exists()) {
-                callback(freshUserSnap.data() as User);
-            } else {
-                 callback(null); // Fallback if still not found
-            }
-        } catch (error) {
-            console.error("Error ensuring user profile document:", error);
-            callback(null);
+      try {
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          callback(userSnap.data() as User);
+        } else {
+          // This case might happen if user doc creation failed or was delayed
+          await createUserProfileDocument(firebaseUser); // Attempt to create if missing
+          const freshUserSnap = await getDoc(userRef);
+          if (freshUserSnap.exists()) {
+              callback(freshUserSnap.data() as User);
+          } else {
+               callback(null); // Fallback if still not found
+          }
         }
+      } catch (error: any) {
+        console.error("Error fetching user document:", error);
+        if (errorCallback) errorCallback(error);
+        else callback(null);
       }
     } else {
       callback(null);
     }
+  }, (error) => {
+    console.error("Auth state changed error:", error);
+    if (errorCallback) errorCallback(error);
+    else callback(null);
   });
 };
