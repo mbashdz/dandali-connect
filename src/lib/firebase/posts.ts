@@ -1,6 +1,6 @@
 
 // src/lib/firebase/posts.ts
-'use server'; // For potential use in Server Components/Actions later, good practice
+// REMOVED 'use server'; to ensure client-side auth context is used for JS SDK calls
 
 import { db } from './config';
 import { 
@@ -31,23 +31,28 @@ interface CreatePostData {
 }
 
 export const createPost = async (postData: CreatePostData): Promise<string> => {
-  console.log("[createPost] Attempting to create post with data:", postData);
+  console.log("[createPost] Called. Data received:", JSON.stringify(postData));
+  
   if (!postData.authorUid) {
-    console.error("[createPost] Author UID is required.");
+    console.error("[createPost] CRITICAL: Author UID is missing in postData. Aborting.");
     throw new Error("Author UID is required to create a post.");
   }
+  console.log("[createPost] Verified authorUid:", postData.authorUid);
 
   try {
-    const postRef = await addDoc(collection(db, 'posts'), {
+    console.log("[createPost] Attempting to add document to 'posts' collection...");
+    const postPayload = {
       ...postData,
       likesCount: 0,
       commentsCount: 0,
-      timestamp: serverTimestamp(),
-    });
-    console.log("[createPost] Post document created with ID:", postRef.id);
+      timestamp: serverTimestamp(), // Use serverTimestamp for reliable ordering
+    };
+    console.log("[createPost] Payload for new post:", JSON.stringify(postPayload));
+    const postRef = await addDoc(collection(db, 'posts'), postPayload);
+    console.log("[createPost] Post document created successfully with ID:", postRef.id);
 
     const userRef = doc(db, 'users', postData.authorUid);
-    console.log("[createPost] Attempting to increment postsCount for user:", postData.authorUid);
+    console.log(`[createPost] Attempting to increment postsCount for user: ${postData.authorUid} at path: ${userRef.path}`);
     await updateDoc(userRef, {
       postsCount: increment(1)
     });
@@ -55,11 +60,11 @@ export const createPost = async (postData: CreatePostData): Promise<string> => {
 
     return postRef.id;
   } catch (error: any) {
-    console.error("[createPost] Error:", error.message, error.code, error);
-    if (error.code === 'permission-denied') {
-      console.error("[createPost] Firestore permission denied. Check your security rules for 'posts' collection (create) and 'users' collection (update).");
+    console.error("[createPost] Error during Firestore operation:", error.message, "Code:", error.code, "Details:", error);
+    if (error.code === 'permission-denied' || error.message.toLowerCase().includes('permission denied')) {
+      console.error("[createPost] Firestore permission denied. Check security rules for 'posts' collection (create) and 'users' collection (update for postsCount). Ensure authorUid in postData matches authenticated user's UID if rules require it.");
     }
-    throw error;
+    throw error; // Re-throw the error to be caught by the calling function
   }
 };
 
@@ -67,8 +72,8 @@ export const getGlobalPosts = async (limitCount: number = 20): Promise<Post[]> =
   console.log("[getGlobalPosts] Attempting to fetch global posts, limit:", limitCount);
   try {
     const postsRef = collection(db, 'posts');
-    // Ensure timestamp field is queried correctly for ordering
-    const q = query(postsRef, orderBy('timestamp', 'desc'), where('timestamp', '!=', null), limit(limitCount));
+    // Ensure timestamp field is queried correctly for ordering, and it exists
+    const q = query(postsRef, orderBy('timestamp', 'desc'), where('timestamp', '!=', null) , limit(limitCount));
     console.log("[getGlobalPosts] Executing query...");
     const querySnapshot = await getDocs(q);
     console.log("[getGlobalPosts] Query successful, processing documents:", querySnapshot.size);
@@ -76,11 +81,12 @@ export const getGlobalPosts = async (limitCount: number = 20): Promise<Post[]> =
     const posts: Post[] = [];
     querySnapshot.forEach((doc) => {
       const data = doc.data();
+      // Convert Firebase Timestamp to ISO string
       const postTimestamp = data.timestamp instanceof Timestamp ? data.timestamp.toDate().toISOString() : new Date().toISOString();
       posts.push({ 
         id: doc.id, 
         ...data,
-        timestamp: postTimestamp,
+        timestamp: postTimestamp, // Ensure timestamp is a string
       } as Post);
     });
     console.log("[getGlobalPosts] Processed posts:", posts.length);
@@ -90,7 +96,8 @@ export const getGlobalPosts = async (limitCount: number = 20): Promise<Post[]> =
     if (error.code === 'permission-denied') {
       console.error("[getGlobalPosts] Firestore permission denied. Check your security rules for 'posts' collection (read).");
     }
-    return [];
+    // Consider if returning empty array is always the best, or if error should propagate
+    return []; // Return empty array on error to prevent app crash, but log it.
   }
 };
 
@@ -114,7 +121,7 @@ export const getUserPosts = async (authorUid: string): Promise<Post[]> => {
       posts.push({ 
         id: doc.id, 
         ...data,
-        timestamp: postTimestamp,
+        timestamp: postTimestamp, // Ensure timestamp is a string
       } as Post);
     });
     console.log("[getUserPosts] Processed posts for user:", authorUid, "Count:", posts.length);
@@ -132,4 +139,3 @@ export const getUserPosts = async (authorUid: string): Promise<Post[]> => {
 // export const getPostComments = async (postId: string): Promise<Comment[]> => { ... }
 // export const addCommentToPost = async (postId: string, commentData: ...) => { ... }
 // export const toggleLikePost = async (postId: string, userId: string) => { ... }
-

@@ -15,7 +15,7 @@ import { createPost, getGlobalPosts } from '@/lib/firebase/posts';
 import type { Post as PostType } from '@/types';
 
 export default function NewsFeedPage() {
-  const { currentUser } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth(); // Added authLoading
   const { toast } = useToast();
   const [postContent, setPostContent] = useState("");
   const [isPosting, setIsPosting] = useState(false);
@@ -26,7 +26,7 @@ export default function NewsFeedPage() {
     if (!name) return "DC";
     const names = name.split(' ');
     if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
-    return names[0][0].toUpperCase() + (names[names.length - 1][0]?.toUpperCase() || '');
+    return (names[0]?.[0] || '').toUpperCase() + (names[names.length - 1]?.[0] || '').toUpperCase();
   };
   
   const fetchPosts = useCallback(async () => {
@@ -46,65 +46,78 @@ export default function NewsFeedPage() {
   }, [toast]);
 
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    // Fetch posts only if auth is not loading and user is available (or app allows anonymous post viewing)
+    // For now, assuming posts are viewable by authenticated users.
+    if (!authLoading) {
+        fetchPosts();
+    }
+  }, [authLoading, fetchPosts]);
 
   const handlePostSubmit = async () => {
     console.log("[NewsFeedPage] handlePostSubmit called. Current post content:", postContent);
+    console.log("[NewsFeedPage] Current auth state: currentUser exists:", !!currentUser, "UID:", currentUser?.uid, "Username:", currentUser?.username, "Name:", currentUser?.name);
+
     if (!postContent.trim()) {
       toast({
         variant: "destructive",
         title: "Cannot create empty post",
         description: "Please write something to post.",
       });
-      console.warn("[NewsFeedPage] Post content is empty.");
+      console.warn("[NewsFeedPage] Post content is empty. Aborting.");
       return;
     }
     
-    console.log("[NewsFeedPage] Current user state before posting:", currentUser);
     if (!currentUser || !currentUser.uid || !currentUser.username || !currentUser.name) {
-      toast({ variant: "destructive", title: "Not Authenticated", description: "You must be logged in to post, or user data is incomplete." });
-      console.error("[NewsFeedPage] User not authenticated or user data (uid, username, name) is missing. currentUser:", currentUser);
-      setIsPosting(false); // Ensure isPosting is reset if we return early
+      toast({ variant: "destructive", title: "Authentication Error", description: "You must be fully logged in to post. User data (UID, username, or name) might be missing." });
+      console.error("[NewsFeedPage] User not authenticated or critical user data missing. Aborting post creation. currentUser:", currentUser);
+      setIsPosting(false); 
       return;
     }
 
     setIsPosting(true);
-    console.log("[NewsFeedPage] Attempting to create post. User UID:", currentUser.uid);
+    console.log(`[NewsFeedPage] Attempting to create post for user UID: ${currentUser.uid}, Username: ${currentUser.username}, Name: ${currentUser.name}`);
     try {
       await createPost({
         content: postContent,
-        authorUid: currentUser.uid,
+        authorUid: currentUser.uid, // Crucial for Firestore rules
         authorUsername: currentUser.username,
         authorName: currentUser.name,
-        authorAvatarUrl: currentUser.avatarUrl || 'https://placehold.co/100x100.png', // Ensure fallback
+        authorAvatarUrl: currentUser.avatarUrl || 'https://placehold.co/100x100.png', 
       });
       toast({
         title: "Post Submitted!",
         description: "Your post has been successfully submitted.",
       });
-      console.log("[NewsFeedPage] Post submitted successfully.");
+      console.log("[NewsFeedPage] Post submitted successfully for user:", currentUser.uid);
       setPostContent(""); 
-      fetchPosts(); // Refresh posts list
+      fetchPosts(); 
     } catch (error: any) {
       console.error("[NewsFeedPage] Error creating post:", error.message, error.code, error);
-      toast({ variant: "destructive", title: "Post Failed", description: "Could not submit your post. Check console for details." });
+      toast({ variant: "destructive", title: "Post Failed", description: `Could not submit your post. ${error.message || 'Check console for details.'}` });
     } finally {
       setIsPosting(false);
       console.log("[NewsFeedPage] handlePostSubmit finished. isPosting:", false);
     }
   };
 
+  if (authLoading) { // Show loader if auth is still loading
+    return (
+      <div className="container mx-auto max-w-2xl py-8 px-2 sm:px-4 text-center flex justify-center items-center min-h-[calc(100vh-200px)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto max-w-2xl py-8 px-2 sm:px-4">
       <div className="space-y-6">
-        {currentUser && (
+        {currentUser && ( // Only show create post card if user is logged in
           <Card className="shadow-lg rounded-xl">
             <CardHeader className="p-4 pb-2">
               <div className="flex items-center space-x-3">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name || currentUser.username} data-ai-hint="user avatar" />
-                  <AvatarFallback>{getInitials(currentUser.name)}</AvatarFallback>
+                  <AvatarFallback>{getInitials(currentUser.name || currentUser.username)}</AvatarFallback>
                 </Avatar>
                 <CardTitle className="text-lg font-semibold">Create Post</CardTitle>
               </div>
@@ -128,7 +141,7 @@ export default function NewsFeedPage() {
                       <span className="hidden sm:inline">Voice</span>
                    </Button>
                 </div>
-                <Button onClick={handlePostSubmit} disabled={isPosting || !postContent.trim()}>
+                <Button onClick={handlePostSubmit} disabled={isPosting || !postContent.trim() || !currentUser}>
                   {isPosting ? (
                     <Send className="mr-2 h-4 w-4 animate-pulse" />
                   ) : (
