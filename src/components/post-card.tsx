@@ -7,38 +7,47 @@ import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { MessageCircle, Heart, Share2, Send, MoreHorizontal, Mic } from "lucide-react" // Added Mic
+import { MessageCircle, Heart, Share2, Send, MoreHorizontal, Mic, Loader2 } from "lucide-react"
 import { formatDistanceToNowStrict } from 'date-fns'
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Textarea } from "@/components/ui/textarea" 
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/contexts/auth-context" 
-
+import { toggleLikePost, addCommentToPost, getPostComments } from "@/lib/firebase/posts"
+import { useToast } from "@/hooks/use-toast"
 
 interface PostCardProps {
-  post: Post
+  post: Post;
+  onPostUpdate?: (updatedPost: Post) => void; // Callback to update post in parent state
 }
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
   const { currentUser } = useAuth();
+  const { toast } = useToast();
+
+  const [post, setPost] = useState<Post>(initialPost);
   const [timestamp, setTimestamp] = useState('');
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState("");
-  const [isLiked, setIsLiked] = useState(post.isLikedByCurrentUser || false); 
-  const [likesCount, setLikesCount] = useState(post.likesCount || 0);
-  const [comments, setComments] = useState<CommentType[]>(post.comments || []);
-  const [commentsCount, setCommentsCount] = useState(post.commentsCount || 0);
+  const [isLiking, setIsLiking] = useState(false);
+  const [isCommenting, setIsCommenting] = useState(false);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [fetchedComments, setFetchedComments] = useState<CommentType[]>([]);
 
+  const isLikedByCurrentUser = currentUser ? post.likedBy?.includes(currentUser.uid) : false;
 
+  useEffect(() => {
+    setPost(initialPost); // Update local post state if initialPost prop changes
+  }, [initialPost]);
+  
   useEffect(() => {
     if (post.timestamp) {
       try {
         const date = new Date(post.timestamp);
-        // Check if date is valid before formatting
         if (!isNaN(date.getTime())) {
           setTimestamp(formatDistanceToNowStrict(date, { addSuffix: true }));
         } else {
-          setTimestamp("just now"); // Fallback for invalid date string
+          setTimestamp("just now");
         }
       } catch (e) {
         console.warn("Error formatting post timestamp:", e, "Timestamp value:", post.timestamp);
@@ -56,32 +65,69 @@ export function PostCard({ post }: PostCardProps) {
     return (names[0][0] || '').toUpperCase() + (names[names.length - 1][0] || '').toUpperCase();
   }
 
-  const handleLike = () => {
-    // TODO: Implement actual like functionality with Firestore
-    setIsLiked(!isLiked);
-    setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
-    console.log(isLiked ? "Unliked post" : "Liked post", post.id);
+  const handleLikeToggle = async () => {
+    if (!currentUser || isLiking) return;
+    setIsLiking(true);
+    try {
+      const { likesCount: updatedLikesCount, likedBy: updatedLikedBy } = await toggleLikePost(post.id, currentUser.uid);
+      const updatedPost = { ...post, likesCount: updatedLikesCount, likedBy: updatedLikedBy };
+      setPost(updatedPost);
+      if (onPostUpdate) onPostUpdate(updatedPost);
+    } catch (error) {
+      console.error("Failed to toggle like:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not update like status." });
+    } finally {
+      setIsLiking(false);
+    }
   };
 
-  const handleCommentSubmit = (e: React.FormEvent) => {
+  const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || !currentUser) return;
+    if (!newComment.trim() || !currentUser || isCommenting) return;
 
-    const mockComment: CommentType = {
-      id: `mockcomment_${Date.now()}`,
-      authorUid: currentUser.uid,
-      authorUsername: currentUser.username || 'anonymous',
-      authorName: currentUser.name || 'Anonymous',
-      authorAvatarUrl: currentUser.avatarUrl || 'https://placehold.co/100x100.png',
-      content: newComment,
-      timestamp: new Date().toISOString(),
-      postId: post.id,
-    };
-    setComments(prevComments => [...prevComments, mockComment]);
-    setCommentsCount(prev => prev + 1);
-    setNewComment("");
-    console.log("New comment submitted (mock):", mockComment);
+    setIsCommenting(true);
+    try {
+      const commentData = {
+        authorUid: currentUser.uid,
+        authorUsername: currentUser.username || 'anonymous',
+        authorName: currentUser.name || 'Anonymous',
+        authorAvatarUrl: currentUser.avatarUrl || 'https://placehold.co/100x100.png',
+        content: newComment,
+      };
+      const addedComment = await addCommentToPost(post.id, commentData);
+      setFetchedComments(prevComments => [addedComment, ...prevComments]); // Add to top for newest first
+      const updatedPost = { ...post, commentsCount: (post.commentsCount || 0) + 1 };
+      setPost(updatedPost);
+      if (onPostUpdate) onPostUpdate(updatedPost);
+      setNewComment("");
+      toast({ title: "Comment posted!" });
+    } catch (error) {
+      console.error("Failed to post comment:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not post comment." });
+    } finally {
+      setIsCommenting(false);
+    }
   };
+
+  const fetchComments = useCallback(async () => {
+    if (!post.id) return;
+    setIsLoadingComments(true);
+    try {
+      const commentsData = await getPostComments(post.id);
+      setFetchedComments(commentsData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())); // Sort newest first
+    } catch (error) {
+      console.error("Failed to fetch comments:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not load comments." });
+    } finally {
+      setIsLoadingComments(false);
+    }
+  }, [post.id, toast]);
+
+  useEffect(() => {
+    if (showComments) {
+      fetchComments();
+    }
+  }, [showComments, fetchComments]);
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg rounded-xl overflow-hidden">
@@ -122,7 +168,6 @@ export function PostCard({ post }: PostCardProps) {
           <div className="mt-3 p-3 bg-muted rounded-lg flex items-center space-x-3">
             <Mic className="h-5 w-5 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Voice Post</span>
-            {/* Basic audio player - can be enhanced later */}
             <audio controls src={post.voiceNoteUrl} className="w-full h-10">
                 Your browser does not support the audio element.
             </audio>
@@ -131,13 +176,14 @@ export function PostCard({ post }: PostCardProps) {
       </CardContent>
       <CardFooter className="p-4 pt-0 flex flex-col items-start">
         <div className="flex justify-between w-full mb-2 text-xs text-muted-foreground">
-            <span>{likesCount} {likesCount === 1 ? 'Like' : 'Likes'}</span>
-            <span>{commentsCount} {commentsCount === 1 ? 'Comment' : 'Comments'}</span>
+            <span>{post.likesCount || 0} {post.likesCount === 1 ? 'Like' : 'Likes'}</span>
+            <span>{post.commentsCount || 0} {post.commentsCount === 1 ? 'Comment' : 'Comments'}</span>
         </div>
         <Separator />
         <div className="flex justify-around w-full pt-2">
-          <Button variant="ghost" className="flex-1" onClick={handleLike}>
-            <Heart className={`mr-2 h-5 w-5 ${isLiked ? 'fill-primary text-primary' : ''}`} /> Like
+          <Button variant="ghost" className="flex-1" onClick={handleLikeToggle} disabled={isLiking || !currentUser}>
+            {isLiking ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Heart className={`mr-2 h-5 w-5 ${isLikedByCurrentUser ? 'fill-primary text-primary' : ''}`} />} 
+            Like
           </Button>
           <Button variant="ghost" className="flex-1" onClick={() => setShowComments(!showComments)}>
             <MessageCircle className="mr-2 h-5 w-5" /> Comment
@@ -161,15 +207,20 @@ export function PostCard({ post }: PostCardProps) {
                   onChange={(e) => setNewComment(e.target.value)}
                   className="flex-grow min-h-[40px] resize-none"
                   rows={1}
+                  disabled={isCommenting}
                 />
-                <Button type="submit" size="icon" disabled={!newComment.trim()}>
-                  <Send className="h-4 w-4" />
+                <Button type="submit" size="icon" disabled={!newComment.trim() || isCommenting}>
+                  {isCommenting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </form>
             )}
-            {comments.length > 0 ? (
-              <div className="space-y-3">
-                {comments.map(comment => (
+            {isLoadingComments ? (
+              <div className="flex justify-center items-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : fetchedComments.length > 0 ? (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {fetchedComments.map(comment => (
                   <div key={comment.id} className="flex items-start space-x-2">
                     <Avatar className="h-8 w-8">
                        <AvatarImage src={comment.authorAvatarUrl} alt={comment.authorName} data-ai-hint="user avatar" />
@@ -188,7 +239,7 @@ export function PostCard({ post }: PostCardProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center">No comments yet.</p>
+              <p className="text-sm text-muted-foreground text-center py-4">No comments yet. Be the first to comment!</p>
             )}
           </div>
         )}

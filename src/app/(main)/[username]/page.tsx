@@ -43,8 +43,7 @@ export default function UserProfilePage() {
         setProfileUser({
           ...userData,
           isCurrentUser: authUser?.uid === userData.uid,
-          // TODO: Implement isFollowedByCurrentUser logic from Firestore
-          isFollowedByCurrentUser: authUser ? Math.random() > 0.5 : false // Mock for now
+          isFollowedByCurrentUser: authUser ? Math.random() > 0.5 : false // Mock, replace with actual follow logic
         });
 
         if (userData.uid) {
@@ -108,6 +107,10 @@ export default function UserProfilePage() {
     }
   };
 
+  const handlePostUpdateInList = (updatedPost: PostType) => {
+    setUserPosts(prevPosts => prevPosts.map(p => p.id === updatedPost.id ? updatedPost : p));
+  };
+
   if (authLoading || loadingProfile) {
     return (
       <div className="container mx-auto max-w-3xl py-8 px-2 sm:px-4 text-center flex justify-center items-center min-h-[calc(100vh-200px)]">
@@ -146,7 +149,7 @@ export default function UserProfilePage() {
             ) : userPosts.length > 0 ? (
               <div className="space-y-6">
                 {userPosts.map((post) => (
-                  <PostCard key={post.id} post={post} />
+                  <PostCard key={post.id} post={post} onPostUpdate={handlePostUpdateInList} />
                 ))}
               </div>
             ) : (

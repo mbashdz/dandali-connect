@@ -29,17 +29,15 @@ export interface Post {
   videoUrl?: string;
   voiceNoteUrl?: string;
   likesCount: number;
-  // likedBy: string[]; // Array of UIDs who liked the post, for more detailed logic
+  likedBy: string[]; // Array of UIDs who liked the post
   commentsCount: number;
   timestamp: string; // ISO date string or Firebase Timestamp
-  isLikedByCurrentUser?: boolean; // Client-side state, or determined by checking likedBy
-  // Comments might be a subcollection in Firestore, or fetched separately.
-  // For simplicity in PostCard, if comments are pre-loaded, they can be here.
-  comments?: Comment[]; 
+  isLikedByCurrentUser?: boolean; // Client-side state, derived from likedBy
+  comments?: Comment[]; // For pre-loaded comments, if any. Primarily fetched on demand.
 }
 
 export interface Comment {
-  id: string; // Firestore document ID for subcollection, or array index
+  id: string; // Firestore document ID from subcollection
   authorUid: string; // UID of the comment author
   authorUsername: string; // Denormalized
   authorName: string; // Denormalized

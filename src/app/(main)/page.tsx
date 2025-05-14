@@ -5,16 +5,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PostCard } from "@/components/post-card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Image as ImageIcon, Mic, Send, Loader2, FileImage, X } from "lucide-react";
+import { PlusCircle, Image as ImageIcon, Mic, Loader2, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { createPost, getGlobalPosts } from '@/lib/firebase/posts';
-import { uploadFile } from '@/lib/firebase/storage'; // Import uploadFile
+import { createPost, getGlobalPosts, getPostById } from '@/lib/firebase/posts';
+import { uploadFile } from '@/lib/firebase/storage';
 import type { Post as PostType } from '@/types';
-import NextImage from 'next/image'; // For image preview
+import NextImage from 'next/image';
 
 export default function NewsFeedPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -68,7 +68,7 @@ export default function NewsFeedPage() {
     setImageFile(null);
     setImagePreview(null);
     if (imageInputRef.current) {
-      imageInputRef.current.value = ""; // Reset file input
+      imageInputRef.current.value = ""; 
     }
   };
 
@@ -112,7 +112,6 @@ export default function NewsFeedPage() {
         authorName: currentUser.name,
         authorAvatarUrl: currentUser.avatarUrl || 'https://placehold.co/100x100.png', 
         imageUrl: imageUrl,
-        // voiceNoteUrl: undefined, // Add logic for voice notes later
       });
       toast({
         title: "Post Submitted!",
@@ -120,7 +119,7 @@ export default function NewsFeedPage() {
       });
       console.log("[NewsFeedPage] Post submitted successfully for user:", currentUser.uid);
       setPostContent(""); 
-      removeImage(); // Clear image selection
+      removeImage(); 
       fetchPosts(); 
     } catch (error: any) {
       console.error("[NewsFeedPage] Error creating post:", error.message, error.code, error);
@@ -129,6 +128,10 @@ export default function NewsFeedPage() {
       setIsPosting(false);
       console.log("[NewsFeedPage] handlePostSubmit finished. isPosting:", false);
     }
+  };
+
+  const handlePostUpdateInList = (updatedPost: PostType) => {
+    setPosts(prevPosts => prevPosts.map(p => p.id === updatedPost.id ? updatedPost : p));
   };
 
   if (authLoading) {
@@ -190,7 +193,7 @@ export default function NewsFeedPage() {
                     size="sm" 
                     className="px-2 sm:px-3" 
                     onClick={() => imageInputRef.current?.click()}
-                    disabled={isPosting || !!imagePreview} // Disable if image already selected
+                    disabled={isPosting || !!imagePreview} 
                   >
                     <ImageIcon className="h-4 w-4 sm:mr-1" />
                     <span className="hidden sm:inline">Photo/Video</span>
@@ -222,7 +225,7 @@ export default function NewsFeedPage() {
           </div>
         ) : posts.length > 0 ? (
           posts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post.id} post={post} onPostUpdate={handlePostUpdateInList} />
           ))
         ) : (
           <div className="text-center py-10">
