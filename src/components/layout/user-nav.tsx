@@ -55,12 +55,14 @@ export function UserNav() {
     );
   }
 
-  const getInitials = (name: string) => {
+  const getInitials = (name?: string) => { // Changed name to be optional
     if (!name) return "DC"; // Default initials
     const names = name.split(' ');
     if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
     return names[0][0].toUpperCase() + (names[names.length - 1][0]?.toUpperCase() || '');
   };
+
+  const profileLinkEnabled = !!currentUser.username;
 
   return (
     <DropdownMenu>
@@ -77,16 +79,17 @@ export function UserNav() {
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{currentUser.name || currentUser.username}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              @{currentUser.username}
+              @{currentUser.username || 'username_loading'}
             </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link href={`/${currentUser.username}`}>
+          <DropdownMenuItem asChild disabled={!profileLinkEnabled}>
+            <Link href={profileLinkEnabled ? `/${currentUser.username}` : '#'}>
               <UserIcon className="mr-2 h-4 w-4" />
               <span>Profile</span>
+              {!profileLinkEnabled && <Loader2 className="ml-2 h-3 w-3 animate-spin" />}
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem disabled> {/* Placeholder for settings */}
