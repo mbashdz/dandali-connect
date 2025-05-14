@@ -1,3 +1,4 @@
+
 // src/app/(main)/[username]/page.tsx
 'use client';
 
@@ -5,15 +6,15 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { ProfileHeader } from "@/components/profile-header";
 import { PostCard } from "@/components/post-card";
-import { mockPosts, mockUsers } from "@/lib/data"; // Still using mock data for posts for now
 import type { User, Post as PostType } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { EditProfileForm } from '@/components/edit-profile-form';
 import { useAuth } from '@/contexts/auth-context';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { updateUserProfile } from '@/lib/firebase/users'; // Ensure this path is correct
+import { updateUserProfile } from '@/lib/firebase/users';
+import { getUserPosts } from '@/lib/firebase/posts'; // Import function to get user posts
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -24,17 +25,18 @@ export default function UserProfilePage() {
   const { toast } = useToast();
   
   const [profileUser, setProfileUser] = useState<User | null>(null);
-  const [userPosts, setUserPosts] = useState<PostType[]>([]); // TODO: Fetch actual posts
+  const [userPosts, setUserPosts] = useState<PostType[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-  const fetchUserProfile = useCallback(async () => {
+  const fetchUserProfileAndPosts = useCallback(async () => {
     if (!usernameFromUrl) return;
     setLoadingProfile(true);
+    setLoadingPosts(true);
 
     try {
-      // Query for the user by username
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("username", "==", usernameFromUrl));
       const querySnapshot = await getDocs(q);
@@ -49,34 +51,35 @@ export default function UserProfilePage() {
           // TODO: Implement isFollowedByCurrentUser logic from Firestore
           isFollowedByCurrentUser: authUser ? Math.random() > 0.5 : false // Mock for now
         });
+
+        // Fetch user's posts
+        if (userData.uid) {
+          const posts = await getUserPosts(userData.uid);
+          setUserPosts(posts);
+        }
+
       } else {
         console.log("No such user!");
         setProfileUser(null);
+        setUserPosts([]);
       }
     } catch (error) {
-      console.error("Error fetching user profile:", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not load profile." });
+      console.error("Error fetching user profile or posts:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not load profile or posts." });
       setProfileUser(null);
+      setUserPosts([]);
     } finally {
       setLoadingProfile(false);
+      setLoadingPosts(false);
     }
   }, [usernameFromUrl, authUser, toast]);
 
   useEffect(() => {
-    if (!authLoading) { // Wait for auth state to be resolved
-      fetchUserProfile();
+    if (!authLoading) { 
+      fetchUserProfileAndPosts();
     }
-  }, [authLoading, fetchUserProfile]);
+  }, [authLoading, fetchUserProfileAndPosts]);
 
-  useEffect(() => {
-    if (profileUser) {
-      // TODO: Fetch posts from Firestore where authorUid === profileUser.uid
-      const posts = mockPosts.filter(post => post.author.username === profileUser?.username); // Temporary mock filter
-      setUserPosts(posts);
-    } else {
-      setUserPosts([]);
-    }
-  }, [profileUser]);
 
   const handleOpenEditDialog = () => setIsEditingProfile(true);
   const handleCloseEditDialog = () => setIsEditingProfile(false);
@@ -87,8 +90,7 @@ export default function UserProfilePage() {
     try {
       await updateUserProfile(authUser.uid, data);
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
-      // Refresh profile data
-      await fetchUserProfile(); 
+      await fetchUserProfileAndPosts(); 
       setIsEditingProfile(false);
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -124,12 +126,16 @@ export default function UserProfilePage() {
       
       <Tabs defaultValue="posts" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-4">
-          <TabsTrigger value="posts">Posts</TabsTrigger>
+          <TabsTrigger value="posts">Posts ({profileUser.postsCount || 0})</TabsTrigger>
           <TabsTrigger value="media">Media</TabsTrigger>
           <TabsTrigger value="likes">Likes</TabsTrigger>
         </TabsList>
         <TabsContent value="posts">
-            {userPosts.length > 0 ? (
+            {loadingPosts ? (
+               <div className="flex justify-center items-center py-10">
+                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
+               </div>
+            ) : userPosts.length > 0 ? (
               <div className="space-y-6">
                 {userPosts.map((post) => (
                   <PostCard key={post.id} post={post} />
@@ -137,7 +143,7 @@ export default function UserProfilePage() {
               </div>
             ) : (
               <div className="text-center py-10">
-                <p className="text-muted-foreground">This user hasn&apos;t posted anything yet.</p>
+                <p className="text-muted-foreground">@{profileUser.username} hasn&apos;t posted anything yet.</p>
               </div>
             )}
         </TabsContent>
@@ -148,7 +154,7 @@ export default function UserProfilePage() {
         </TabsContent>
         <TabsContent value="likes">
           <div className="text-center py-10">
-            <p className="text-muted-foreground">Posts liked by this user will appear here.</p>
+            <p className="text-muted-foreground">Posts liked by @{profileUser.username} will appear here.</p>
           </div>
         </TabsContent>
       </Tabs>

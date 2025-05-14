@@ -1,26 +1,29 @@
+
 export interface User {
   id: string; // This will be the Firebase UID
   uid: string; // Firebase UID
   username: string;
   name: string;
-  email: string; // Added email
+  email: string; 
   avatarUrl: string;
   coverPhotoUrl: string;
   bio: string;
-  location?: string; // New: User's location
-  website?: string; // New: User's website
+  location?: string; 
+  website?: string; 
   followersCount: number;
   followingCount: number;
   postsCount: number;
   createdAt: string; // ISO date string
-  isCurrentUser?: boolean; // This will be determined by comparing with authContext.currentUser.uid
-  isFollowedByCurrentUser?: boolean; // This will require Firestore logic later
+  isCurrentUser?: boolean; 
+  isFollowedByCurrentUser?: boolean; 
 }
 
 export interface Post {
-  id:string; // Firestore document ID
+  id: string; // Firestore document ID
   authorUid: string; // UID of the author
-  author: User; // Denormalized author info (or fetched separately)
+  authorUsername: string; // Denormalized
+  authorName: string; // Denormalized
+  authorAvatarUrl: string; // Denormalized
   content: string;
   imageUrl?: string;
   videoUrl?: string;
@@ -30,13 +33,18 @@ export interface Post {
   commentsCount: number;
   timestamp: string; // ISO date string or Firebase Timestamp
   isLikedByCurrentUser?: boolean; // Client-side state, or determined by checking likedBy
-  comments: Comment[]; // Subcollection or array of comments
+  // Comments might be a subcollection in Firestore, or fetched separately.
+  // For simplicity in PostCard, if comments are pre-loaded, they can be here.
+  comments?: Comment[]; 
 }
 
 export interface Comment {
   id: string; // Firestore document ID for subcollection, or array index
   authorUid: string; // UID of the comment author
-  author: Pick<User, 'uid' | 'username' | 'name' | 'avatarUrl'>; // Denormalized author info
+  authorUsername: string; // Denormalized
+  authorName: string; // Denormalized
+  authorAvatarUrl: string; // Denormalized
   content: string;
   timestamp: string; // ISO date string or Firebase Timestamp
+  postId: string; // ID of the post this comment belongs to
 }
