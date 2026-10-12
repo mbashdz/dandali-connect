@@ -62,12 +62,19 @@ export const createStory = async (
 
   const storiesRef = collection(db, 'stories');
   const now = new Date();
-  const docRef = await addDoc(storiesRef, {
-    ...storyData,
+  const storyPayload: Record<string, any> = {
     authorUid: currentUser.uid,
+    authorUsername: storyData.authorUsername || '',
+    authorName: storyData.authorName || 'Community Member',
+    authorAvatarUrl: storyData.authorAvatarUrl || '',
     createdAt: serverTimestamp(),
     expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
-  });
+  };
 
+  if (storyData.mediaUrl) storyPayload.mediaUrl = storyData.mediaUrl;
+  if (storyData.text) storyPayload.text = storyData.text;
+  if (storyData.bgColor) storyPayload.bgColor = storyData.bgColor;
+
+  const docRef = await addDoc(storiesRef, storyPayload);
   return docRef.id;
 };

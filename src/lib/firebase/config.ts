@@ -10,7 +10,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyA0pLxKSxGc9W7yb9UezzlddlrkpI2UlKQ",
   authDomain: "dandali-d54a8.firebaseapp.com",
   projectId: "dandali-d54a8",
-  storageBucket: "dandali-d54a8.appspot.com",
+  storageBucket: "dandali-d54a8.firebasestorage.app",
   messagingSenderId: "445883547471",
   appId: "1:445883547471:web:2280907ce001c6dacccf3a",
   measurementId: "G-6RJZTL2B36"

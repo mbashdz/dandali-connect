@@ -61,13 +61,28 @@ export const createPost = async (postData: CreatePostData): Promise<string> => {
   console.log("[createPost] Verified authorUid from postData:", postData.authorUid, "matches Firebase Auth SDK currentUser.uid:", firebaseAuthCurrentUser.uid);
 
   try {
-    const postPayload = {
-      ...postData,
+    const postPayload: Record<string, any> = {
+      content: postData.content,
+      authorUid: postData.authorUid,
+      authorUsername: postData.authorUsername,
+      authorName: postData.authorName,
+      authorAvatarUrl: postData.authorAvatarUrl,
       likesCount: 0,
       likedBy: [],
       commentsCount: 0,
-      timestamp: serverTimestamp(), 
+      timestamp: serverTimestamp(),
     };
+
+    if (postData.imageUrl) {
+      postPayload.imageUrl = postData.imageUrl;
+    }
+    if (postData.videoUrl) {
+      postPayload.videoUrl = postData.videoUrl;
+    }
+    if (postData.voiceNoteUrl) {
+      postPayload.voiceNoteUrl = postData.voiceNoteUrl;
+    }
+
     console.log("[createPost] Payload for new post:", JSON.stringify(postPayload));
     
     console.log("[createPost] Attempting to add document to 'posts' collection...");
