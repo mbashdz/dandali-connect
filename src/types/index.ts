@@ -49,6 +49,8 @@ export interface Post {
   currentUserReaction?: CulturalReactionType;
   comments?: Comment[];
   category?: string; // e.g. "Al'umma", "Labarai", "Kasuwa", "Kida/Fim"
+  isEdited?: boolean;
+  updatedAt?: string;
 }
 
 export interface Comment {

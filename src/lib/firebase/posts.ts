@@ -7,6 +7,7 @@ import {
   doc, 
   Timestamp, 
   updateDoc, 
+  deleteDoc,
   increment, 
   query, 
   where, 
@@ -378,6 +379,48 @@ export const setCulturalReaction = async (
   } catch (error: any) {
     console.error(`[setCulturalReaction] Error:`, error);
     throw error;
+  }
+};
+
+export const updatePostContent = async (postId: string, newContent: string): Promise<void> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error("Must be logged in to edit a post.");
+  
+  const postRef = doc(db, 'posts', postId);
+  const postSnap = await getDoc(postRef);
+  if (!postSnap.exists()) throw new Error("Post does not exist.");
+  if (postSnap.data().authorUid !== currentUser.uid) {
+    throw new Error("Unauthorized: You can only edit your own posts.");
+  }
+
+  await updateDoc(postRef, {
+    content: newContent,
+    isEdited: true,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deletePost = async (postId: string): Promise<void> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error("Must be logged in to delete a post.");
+
+  const postRef = doc(db, 'posts', postId);
+  const postSnap = await getDoc(postRef);
+  if (!postSnap.exists()) throw new Error("Post does not exist.");
+  if (postSnap.data().authorUid !== currentUser.uid) {
+    throw new Error("Unauthorized: You can only delete your own posts.");
+  }
+
+  await deleteDoc(postRef);
+
+  // Decrement user's post count
+  try {
+    const userRef = doc(db, 'users', currentUser.uid);
+    await updateDoc(userRef, {
+      postsCount: increment(-1),
+    });
+  } catch (err) {
+    console.warn("[deletePost] Could not decrement postsCount:", err);
   }
 };
 

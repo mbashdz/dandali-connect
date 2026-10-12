@@ -6,21 +6,39 @@ import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { MessageCircle, Heart, Share2, Send, MoreHorizontal, Mic, Loader2, Sparkles, Volume2 } from "lucide-react"
+import { MessageCircle, Heart, Share2, Send, MoreHorizontal, Mic, Loader2, Sparkles, Volume2, Pencil, Trash2 } from "lucide-react"
 import { formatDistanceToNowStrict } from 'date-fns'
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Textarea } from "@/components/ui/textarea" 
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/contexts/auth-context" 
 import { useAppSettings } from "@/contexts/app-settings-context"
-import { toggleLikePost, addCommentToPost, getPostComments, setCulturalReaction } from "@/lib/firebase/posts"
+import { toggleLikePost, addCommentToPost, getPostComments, setCulturalReaction, updatePostContent, deletePost } from "@/lib/firebase/posts"
 import { useToast } from "@/hooks/use-toast"
 import { CulturalReactionsPicker, CULTURAL_REACTIONS } from "@/components/cultural-reactions-picker"
 import { ReportDialog } from "@/components/report-dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ShieldAlert, Flag } from "lucide-react"
@@ -47,11 +65,53 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [editContentText, setEditContentText] = useState(post.content || "");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const isAuthor = currentUser?.uid === post.authorUid;
+
   const currentUserReaction = currentUser ? (post.reactions?.[currentUser.uid] || null) : null;
   const isLikedByCurrentUser = !!currentUserReaction || (currentUser ? post.likedBy?.includes(currentUser.uid) : false);
+
+  const handleSaveEdit = async () => {
+    if (!editContentText.trim() || isSavingEdit) return;
+    setIsSavingEdit(true);
+    try {
+      await updatePostContent(post.id, editContentText.trim());
+      const updated = { ...post, content: editContentText.trim(), isEdited: true };
+      setPost(updated);
+      if (onPostUpdate) onPostUpdate(updated);
+      setIsEditDialogOpen(false);
+      toast({ title: "Post updated", description: "Your post has been successfully edited." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error editing post", description: err.message });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDeletePost = async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await deletePost(post.id);
+      toast({ title: "Post deleted", description: "Your post was removed." });
+      // Notify parent to remove post from list
+      if (onPostUpdate) {
+        onPostUpdate({ ...post, _deleted: true } as any);
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error deleting post", description: err.message });
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+    }
+  };
 
   useEffect(() => {
     setPost(initialPost);
@@ -216,10 +276,32 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
                 <MoreHorizontal className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-2xl p-1.5 w-44">
+            <DropdownMenuContent align="end" className="rounded-2xl p-1.5 w-44 shadow-lg border border-border">
+              {isAuthor && (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setEditContentText(post.content || "");
+                      setIsEditDialogOpen(true);
+                    }}
+                    className="font-semibold cursor-pointer gap-2 rounded-xl text-xs hover:bg-muted"
+                  >
+                    <Pencil className="w-4 h-4 text-primary" />
+                    Gyara (Edit Post)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                    className="text-destructive font-semibold cursor-pointer gap-2 rounded-xl text-xs hover:bg-destructive/10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Goge (Delete Post)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem
                 onClick={() => setIsReportOpen(true)}
-                className="text-destructive font-semibold cursor-pointer gap-2 rounded-xl text-xs"
+                className="text-muted-foreground font-semibold cursor-pointer gap-2 rounded-xl text-xs hover:text-destructive"
               >
                 <ShieldAlert className="w-4 h-4" />
                 Report Post
@@ -494,6 +576,78 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
         targetType="post"
         targetTitle={`Post by @${post.authorUsername}: "${post.content?.slice(0, 50) || 'Media post'}..."`}
       />
+
+      {/* Edit Post Modal */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md rounded-3xl p-5">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-primary" />
+              Gyara Sakon Ka (Edit Post)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <Textarea
+              value={editContentText}
+              onChange={(e) => setEditContentText(e.target.value)}
+              placeholder="Sabunta sakonka..."
+              rows={4}
+              className="rounded-2xl resize-none text-sm leading-relaxed border-border/80"
+            />
+          </div>
+          <DialogFooter className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl"
+              onClick={() => setIsEditDialogOpen(false)}
+              disabled={isSavingEdit}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="rounded-xl bg-primary text-primary-foreground font-bold"
+              onClick={handleSaveEdit}
+              disabled={!editContentText.trim() || isSavingEdit}
+            >
+              {isSavingEdit && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
+              Adana (Save Changes)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Post Confirmation Modal */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="max-w-md rounded-3xl p-6">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base font-bold text-destructive flex items-center gap-2">
+              <Trash2 className="w-5 h-5" />
+              Goge wannan sakon? (Delete Post)
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              Shin ka tabbata kana son goge wannan sakon daga Dandali Connect? Ba za a iya dawo da shi ba idan an goge.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex gap-2 mt-2">
+            <AlertDialogCancel className="rounded-xl" disabled={isDeleting}>
+              A'a (Cancel)
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeletePost();
+              }}
+              className="rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold"
+              disabled={isDeleting}
+            >
+              {isDeleting && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
+              I, Goge Shi (Yes, Delete)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }

@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Plus, Sparkles, X, Loader2 } from "lucide-react";
+import { Plus, Sparkles, X, Loader2, Image as ImageIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/auth-context";
 import { useAppSettings } from "@/contexts/app-settings-context";
 import { getActiveStories, createStory } from "@/lib/firebase/stories";
+import { uploadFile } from "@/lib/firebase/storage";
 import type { Story } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,8 +21,11 @@ export function StoriesCarousel() {
   const [activeStory, setActiveStory] = useState<Story | null>(null);
   const [isCreatingStory, setIsCreatingStory] = useState(false);
   const [newStoryText, setNewStoryText] = useState("");
+  const [storyImageFile, setStoryImageFile] = useState<File | null>(null);
+  const [storyImagePreview, setStoryImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedBg, setSelectedBg] = useState("from-orange-600 to-amber-700");
+  const storyImageInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const colorOptions = [
     "from-orange-600 to-amber-700",
@@ -29,6 +33,22 @@ export function StoriesCarousel() {
     "from-amber-600 to-red-600",
     "from-indigo-800 to-purple-900",
   ];
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setStoryImageFile(file);
+      setStoryImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removeStoryImage = () => {
+    setStoryImageFile(null);
+    setStoryImagePreview(null);
+    if (storyImageInputRef.current) {
+      storyImageInputRef.current.value = "";
+    }
+  };
 
   useEffect(() => {
     const fetchStories = async () => {
@@ -46,16 +66,22 @@ export function StoriesCarousel() {
   }, []);
 
   const handleCreateStory = async () => {
-    if (!newStoryText.trim() || !currentUser || isSubmitting) return;
+    if ((!newStoryText.trim() && !storyImageFile) || !currentUser || isSubmitting) return;
     setIsSubmitting(true);
     try {
+      let mediaUrl: string | undefined = undefined;
+      if (storyImageFile) {
+        mediaUrl = await uploadFile(storyImageFile, `stories/${currentUser.uid}`);
+      }
+
       const storyId = await createStory({
         authorUid: currentUser.uid,
         authorUsername: currentUser.username || "me",
         authorName: currentUser.name || "You",
         authorAvatarUrl: currentUser.avatarUrl || "https://placehold.co/100x100.png",
-        text: newStoryText,
-        bgColor: selectedBg,
+        text: newStoryText.trim() || undefined,
+        mediaUrl,
+        bgColor: mediaUrl ? undefined : selectedBg,
         viewed: false,
       });
 
@@ -65,8 +91,9 @@ export function StoriesCarousel() {
         authorUsername: currentUser.username || "me",
         authorName: currentUser.name || "You",
         authorAvatarUrl: currentUser.avatarUrl || "https://placehold.co/100x100.png",
-        text: newStoryText,
-        bgColor: selectedBg,
+        text: newStoryText.trim() || undefined,
+        mediaUrl,
+        bgColor: mediaUrl ? undefined : selectedBg,
         createdAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + 86400000).toISOString(),
         viewed: false,
@@ -74,6 +101,7 @@ export function StoriesCarousel() {
 
       setStories([newStory, ...stories]);
       setNewStoryText("");
+      removeStoryImage();
       setIsCreatingStory(false);
       toast({ title: "Moment Published", description: "Your 24-hour status is now live for followers." });
     } catch (err: any) {
@@ -254,43 +282,87 @@ export function StoriesCarousel() {
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-2">
-                Choose Mood Color
-              </label>
-              <div className="flex gap-2">
-                {colorOptions.map((bg) => (
-                  <button
-                    key={bg}
-                    onClick={() => setSelectedBg(bg)}
-                    className={`w-9 h-9 rounded-full bg-gradient-to-br ${bg} border-2 ${
-                      selectedBg === bg ? "border-foreground scale-110" : "border-transparent"
-                    } transition-all`}
-                  />
-                ))}
+            {/* Photo preview or background preview */}
+            {storyImagePreview ? (
+              <div className="relative w-full h-48 rounded-2xl overflow-hidden border border-border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={storyImagePreview}
+                  alt="Story preview"
+                  className="w-full h-full object-cover"
+                />
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 h-7 w-7 rounded-full shadow"
+                  onClick={removeStoryImage}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-2">
+                  Choose Mood Color
+                </label>
+                <div className="flex gap-2 mb-3">
+                  {colorOptions.map((bg) => (
+                    <button
+                      key={bg}
+                      onClick={() => setSelectedBg(bg)}
+                      className={`w-9 h-9 rounded-full bg-gradient-to-br ${bg} border-2 ${
+                        selectedBg === bg ? "border-foreground scale-110" : "border-transparent"
+                      } transition-all`}
+                    />
+                  ))}
+                </div>
+                <div
+                  className={`w-full h-36 rounded-2xl bg-gradient-to-br ${selectedBg} p-4 flex items-center justify-center text-center text-white shadow-inner`}
+                >
+                  <p className="text-sm font-medium">
+                    {newStoryText || "Type your thoughts, greetings, or gist..."}
+                  </p>
+                </div>
+              </div>
+            )}
 
-            <div
-              className={`w-full h-44 rounded-2xl bg-gradient-to-br ${selectedBg} p-4 flex items-center justify-center text-center text-white shadow-inner`}
-            >
-              <p className="text-sm font-medium">
-                {newStoryText || "Type your thoughts, greetings, or gist..."}
-              </p>
+            {/* Photo upload trigger & Text input */}
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                ref={storyImageInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageSelect}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => storyImageInputRef.current?.click()}
+                className="rounded-xl border-dashed border-primary/50 text-xs font-bold gap-1.5 hover:bg-primary/10 hover:text-primary"
+              >
+                <ImageIcon className="w-4 h-4 text-primary" />
+                <span>{storyImagePreview ? "Canja Hoto (Change Photo)" : "Sanya Hoto (Add Photo)"}</span>
+              </Button>
             </div>
 
             <textarea
               value={newStoryText}
               onChange={(e) => setNewStoryText(e.target.value)}
-              placeholder="What do you want to share with everyone for 24 hours?"
-              className="w-full h-24 p-3 rounded-xl border bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Rubuta bayani (Optional caption or story message)..."
+              className="w-full h-20 p-3 rounded-xl border bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
             />
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-1">
               <Button variant="ghost" onClick={() => setIsCreatingStory(false)} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateStory} disabled={!newStoryText.trim() || isSubmitting} className="rounded-xl font-bold bg-primary text-primary-foreground">
+              <Button
+                onClick={handleCreateStory}
+                disabled={(!newStoryText.trim() && !storyImageFile) || isSubmitting}
+                className="rounded-xl font-bold bg-primary text-primary-foreground"
+              >
                 {isSubmitting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
                 Publish Moment
               </Button>

@@ -150,8 +150,12 @@ export default function NewsFeedPage() {
     }
   };
 
-  const handlePostUpdateInList = (updatedPost: PostType) => {
-    setPosts((prevPosts) => prevPosts.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+  const handlePostUpdateInList = (updatedPost: PostType & { _deleted?: boolean }) => {
+    if (updatedPost._deleted) {
+      setPosts((prevPosts) => prevPosts.filter((p) => p.id !== updatedPost.id));
+    } else {
+      setPosts((prevPosts) => prevPosts.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+    }
   };
 
   if (authLoading) {
