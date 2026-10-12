@@ -7,9 +7,11 @@ import { AuthProvider } from '@/contexts/auth-context'; // Import AuthProvider
 import { Toaster } from "@/components/ui/toaster";
 
 
+import { AppSettingsProvider } from '@/contexts/app-settings-context';
+
 export const metadata: Metadata = {
-  title: 'Dandali Connect',
-  description: 'A full-featured social media application for the Hausa-speaking community.',
+  title: 'Dandali Connect • African Social Network',
+  description: 'Connecting communities across Africa with culturally rich social networking, voice posts, moments, and local marketplace.',
 };
 
 export default function RootLayout({
@@ -29,9 +31,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider> {/* Wrap children with AuthProvider */}
-            {children}
-          </AuthProvider>
+          <AppSettingsProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </AppSettingsProvider>
           <Toaster />
         </ThemeProvider>
       </body>

@@ -1,4 +1,3 @@
-
 export interface User {
   id: string; // This will be the Firebase UID
   uid: string; // Firebase UID
@@ -16,6 +15,17 @@ export interface User {
   createdAt: string; // ISO date string
   isCurrentUser?: boolean; 
   isFollowedByCurrentUser?: boolean; 
+  verified?: boolean; // African creator / community leader badge
+}
+
+export type CulturalReactionType = 'kauna' | 'madalla' | 'wuta' | 'dariya' | 'alheri';
+
+export interface ReactionCount {
+  kauna?: number;
+  madalla?: number;
+  wuta?: number;
+  dariya?: number;
+  alheri?: number;
 }
 
 export interface Post {
@@ -28,12 +38,17 @@ export interface Post {
   imageUrl?: string;
   videoUrl?: string;
   voiceNoteUrl?: string;
+  voiceDuration?: number; // Duration in seconds
   likesCount: number;
   likedBy: string[]; // Array of UIDs who liked the post
+  reactions?: Record<string, CulturalReactionType>; // uid -> reaction
+  reactionsCount?: ReactionCount;
   commentsCount: number;
   timestamp: string; // ISO date string or Firebase Timestamp
   isLikedByCurrentUser?: boolean; // Client-side state, derived from likedBy
-  comments?: Comment[]; // For pre-loaded comments, if any. Primarily fetched on demand.
+  currentUserReaction?: CulturalReactionType;
+  comments?: Comment[];
+  category?: string; // e.g. "Al'umma", "Labarai", "Kasuwa", "Kida/Fim"
 }
 
 export interface Comment {
@@ -43,6 +58,39 @@ export interface Comment {
   authorName: string; // Denormalized
   authorAvatarUrl: string; // Denormalized
   content: string;
+  voiceNoteUrl?: string;
   timestamp: string; // ISO date string or Firebase Timestamp
   postId: string; // ID of the post this comment belongs to
+}
+
+export interface Story {
+  id: string;
+  authorUid: string;
+  authorUsername: string;
+  authorName: string;
+  authorAvatarUrl: string;
+  mediaUrl?: string;
+  text?: string;
+  bgColor?: string;
+  createdAt: string;
+  expiresAt: string;
+  viewed?: boolean;
+}
+
+export interface KasuwaItem {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  currency: 'NGN' | 'GHS' | 'XOF' | 'KES' | 'USD';
+  location: string;
+  category: 'electronics' | 'fashion' | 'food' | 'vehicles' | 'services' | 'handicrafts' | 'property';
+  imageUrl: string;
+  sellerUid: string;
+  sellerName: string;
+  sellerPhone?: string;
+  sellerWhatsapp?: string;
+  sellerAvatarUrl: string;
+  createdAt: string;
+  isSold?: boolean;
 }

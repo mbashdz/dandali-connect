@@ -1,7 +1,7 @@
 
 // src/lib/firebase/users.ts
 import { db } from './config';
-import { doc, updateDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import type { User } from '@/types';
 
 export const updateUserProfile = async (uid: string, data: Partial<User>): Promise<void> => {
@@ -14,7 +14,7 @@ export const updateUserProfile = async (uid: string, data: Partial<User>): Promi
   
   const updateData = Object.entries(data).reduce((acc, [key, value]) => {
     if (value !== undefined) {
-      acc[key as keyof Partial<User>] = value;
+      (acc as Record<string, any>)[key] = value;
     }
     return acc;
   }, {} as Partial<User>);
@@ -88,3 +88,24 @@ export const getUserProfileByUsername = async (username: string): Promise<User |
     return null;
   }
 };
+
+export const getSuggestedUsers = async (limitCount: number = 5, currentUserId?: string): Promise<User[]> => {
+  try {
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, limit(limitCount + 3));
+    const querySnapshot = await getDocs(q);
+    const users: User[] = [];
+    querySnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (currentUserId && (docSnap.id === currentUserId || data.uid === currentUserId)) {
+        return;
+      }
+      users.push({ id: docSnap.id, ...data } as User);
+    });
+    return users.slice(0, limitCount);
+  } catch (err) {
+    console.error("[getSuggestedUsers] Error:", err);
+    return [];
+  }
+};
+

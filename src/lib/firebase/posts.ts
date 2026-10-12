@@ -312,3 +312,57 @@ export const getPostById = async (postId: string): Promise<Post | null> => {
     throw error;
   }
 };
+
+export const setCulturalReaction = async (
+  postId: string,
+  userId: string,
+  reaction: 'kauna' | 'madalla' | 'wuta' | 'dariya' | 'alheri'
+): Promise<{ likesCount: number; reactionsCount: Record<string, number>; currentUserReaction: string }> => {
+  const postRef = doc(db, 'posts', postId);
+  try {
+    const postSnap = await getDoc(postRef);
+    if (!postSnap.exists()) {
+      throw new Error("Post not found");
+    }
+    const postData = postSnap.data() as Post;
+    const existingReactions = postData.reactions || {};
+    const existingCounts = (postData.reactionsCount || {}) as Record<string, number>;
+    const prevReaction = existingReactions[userId];
+
+    const updatedCounts = { ...existingCounts };
+
+    if (prevReaction === reaction) {
+      // Toggle off
+      delete existingReactions[userId];
+      updatedCounts[reaction] = Math.max(0, (updatedCounts[reaction] || 1) - 1);
+      const newLikedBy = (postData.likedBy || []).filter(id => id !== userId);
+      const newLikesCount = Math.max(0, (postData.likesCount || 1) - 1);
+      await updateDoc(postRef, {
+        [`reactions.${userId}`]: null,
+        reactionsCount: updatedCounts,
+        likedBy: newLikedBy,
+        likesCount: newLikesCount
+      });
+      return { likesCount: newLikesCount, reactionsCount: updatedCounts, currentUserReaction: '' };
+    } else {
+      if (prevReaction) {
+        updatedCounts[prevReaction] = Math.max(0, (updatedCounts[prevReaction] || 1) - 1);
+      }
+      existingReactions[userId] = reaction;
+      updatedCounts[reaction] = (updatedCounts[reaction] || 0) + 1;
+      const newLikedBy = Array.from(new Set([...(postData.likedBy || []), userId]));
+      const newLikesCount = newLikedBy.length;
+      await updateDoc(postRef, {
+        [`reactions.${userId}`]: reaction,
+        reactionsCount: updatedCounts,
+        likedBy: newLikedBy,
+        likesCount: newLikesCount
+      });
+      return { likesCount: newLikesCount, reactionsCount: updatedCounts, currentUserReaction: reaction };
+    }
+  } catch (error: any) {
+    console.error(`[setCulturalReaction] Error:`, error);
+    throw error;
+  }
+};
+

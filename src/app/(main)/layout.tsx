@@ -36,13 +36,16 @@ export default function MainAppLayout({ children }: PropsWithChildren) {
     <div className="relative flex min-h-screen flex-col bg-background">
       <AppHeader />
       <main className="flex-1">{children}</main>
-      <footer className="py-6 md:px-8 md:py-0 bg-background border-t">
-        <div className="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
-          <p className="text-balance text-center text-sm leading-loose text-muted-foreground md:text-left">
-            &copy; {new Date().getFullYear()} Dandali Connect. All rights reserved.
-            <br />
-            Built for the Hausa-speaking community.
+      <footer className="py-6 md:px-8 bg-background border-t">
+        <div className="container max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+          <p className="text-center md:text-left">
+            &copy; {new Date().getFullYear()} Dandali Connect Africa &middot; Dandalin Sada Zumuntar Afirka. All rights reserved.
           </p>
+          <div className="flex items-center gap-4 font-semibold">
+            <a href="/terms" className="hover:text-primary transition-colors">Sharuddan Aiki (Terms)</a>
+            <span>&middot;</span>
+            <a href="/privacy" className="hover:text-primary transition-colors">Sirri da Tsaro (Privacy)</a>
+          </div>
         </div>
       </footer>
     </div>
