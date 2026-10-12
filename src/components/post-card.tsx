@@ -279,18 +279,19 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
             <audio
               ref={audioRef}
               src={post.voiceNoteUrl}
+              preload="metadata"
               onEnded={() => setIsPlayingAudio(false)}
               className="hidden"
             />
           </div>
         )}
 
-        {/* Image Post with Data-Saver support */}
+        {/* Image Post with Data-Saver & Fast CDN support */}
         {post.imageUrl && (
-          <div className="mt-2 rounded-2xl overflow-hidden border border-border/60 aspect-video relative group bg-muted/40">
+          <div className="mt-2.5 rounded-2xl overflow-hidden border border-border/60 relative group bg-muted/30">
             {dataSaver ? (
-              <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-muted/70 text-center">
-                <Sparkles className="w-8 h-8 text-secondary mb-1" />
+              <div className="w-full flex flex-col items-center justify-center p-4 bg-muted/60 text-center">
+                <Sparkles className="w-6 h-6 text-secondary mb-1" />
                 <p className="text-xs font-semibold text-foreground">Data Saver Mode Active</p>
                 <p className="text-[11px] text-muted-foreground mb-2">Image compressed for fast low-bandwidth loading</p>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -298,18 +299,25 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
                   src={post.imageUrl}
                   alt="Post"
                   loading="lazy"
-                  className="max-h-36 rounded-lg object-contain shadow"
+                  decoding="async"
+                  className="max-h-48 rounded-xl object-contain shadow mx-auto"
                 />
               </div>
             ) : (
-              <Image
-                src={post.imageUrl}
-                alt="Post content"
-                fill
-                sizes="(max-width: 768px) 100vw, 650px"
-                className="object-cover w-full h-full group-hover:scale-[1.01] transition-transform duration-500"
-                data-ai-hint="social media content"
-              />
+              <div className="relative w-full aspect-[4/3] sm:aspect-video max-h-[480px]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={post.imageUrl}
+                  alt="Post content"
+                  loading="lazy"
+                  decoding="async"
+                  className="object-cover w-full h-full group-hover:scale-[1.01] transition-transform duration-300"
+                  onError={(e) => {
+                    // Fallback to placeholder if broken or storage network blocked
+                    (e.target as HTMLImageElement).src = "https://placehold.co/600x400/png?text=Dandali+Photo";
+                  }}
+                />
+              </div>
             )}
           </div>
         )}

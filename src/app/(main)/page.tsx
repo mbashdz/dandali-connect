@@ -163,8 +163,8 @@ export default function NewsFeedPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-7xl py-6 px-3 sm:px-6">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <div className="container mx-auto max-w-7xl py-3 sm:py-6 px-2 sm:px-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8 items-start">
         {/* Left Side: Community Trends & Gist Shortcuts (Desktop) */}
         <div className="hidden lg:block lg:col-span-3 space-y-5 sticky top-20">
           <Card className="rounded-3xl border border-border/80 shadow-xs bg-card p-4">
