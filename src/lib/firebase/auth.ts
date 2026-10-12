@@ -6,10 +6,14 @@ import {
   signInWithEmailAndPassword, 
   signOut,
   onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
   type User as FirebaseUser
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import type { User } from '@/types';
+
+const googleProvider = new GoogleAuthProvider();
 
 // Function to create a user profile in Firestore
 export const createUserProfileDocument = async (firebaseUser: FirebaseUser, additionalData?: Record<string, any>) => {
@@ -75,6 +79,17 @@ export const signUp = async (email: string, password: string, name: string) => {
 export const signIn = async (email: string, password: string) => {
   console.log("[signIn] Attempting sign-in for email:", email);
   return signInWithEmailAndPassword(auth, email, password);
+};
+
+export const signInWithGoogle = async () => {
+  console.log("[signInWithGoogle] Attempting Google sign-in.");
+  const result = await signInWithPopup(auth, googleProvider);
+  const user = result.user;
+  await createUserProfileDocument(user, {
+    name: user.displayName || user.email?.split('@')[0] || 'Dandali User',
+    avatarUrl: user.photoURL || 'https://placehold.co/100x100.png',
+  });
+  return user;
 };
 
 export const doSignOut = async () => {
