@@ -8,6 +8,7 @@ import {
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithPopup,
+  sendPasswordResetEmail,
   type User as FirebaseUser
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -90,6 +91,11 @@ export const signInWithGoogle = async () => {
     avatarUrl: user.photoURL || 'https://placehold.co/100x100.png',
   });
   return user;
+};
+
+export const resetPassword = async (email: string) => {
+  console.log("[resetPassword] Sending password reset email to:", email);
+  return sendPasswordResetEmail(auth, email);
 };
 
 export const doSignOut = async () => {

@@ -2,19 +2,20 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Compass, Store, Flame } from "lucide-react"
+import { Home, Compass, Store, MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useAppSettings } from "@/contexts/app-settings-context"
 
 export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
   const pathname = usePathname();
-  const { t } = useAppSettings();
+  const { t, language } = useAppSettings();
 
   const navItems = [
     { href: "/", label: t("home"), icon: Home },
     { href: "/explore", label: t("explore"), icon: Compass },
     { href: "/kasuwa", label: t("kasuwa"), icon: Store, badge: "New" },
+    { href: "/messages", label: language === "ha" ? "Sakonni" : "Messages", icon: MessageSquare },
   ];
 
   return (

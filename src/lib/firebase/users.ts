@@ -1,7 +1,20 @@
 
 // src/lib/firebase/users.ts
 import { db } from './config';
-import { doc, updateDoc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { 
+  doc, 
+  updateDoc, 
+  getDoc, 
+  setDoc,
+  deleteDoc,
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  limit,
+  increment,
+  serverTimestamp 
+} from 'firebase/firestore';
 import type { User } from '@/types';
 
 export const updateUserProfile = async (uid: string, data: Partial<User>): Promise<void> => {
@@ -106,6 +119,76 @@ export const getSuggestedUsers = async (limitCount: number = 5, currentUserId?: 
   } catch (err) {
     console.error("[getSuggestedUsers] Error:", err);
     return [];
+  }
+};
+
+export const checkIsFollowing = async (followerUid: string, targetUid: string): Promise<boolean> => {
+  if (!followerUid || !targetUid || followerUid === targetUid) return false;
+  try {
+    const followDocRef = doc(db, 'users', targetUid, 'followers', followerUid);
+    const snap = await getDoc(followDocRef);
+    return snap.exists();
+  } catch (err) {
+    console.warn("[checkIsFollowing] Error:", err);
+    return false;
+  }
+};
+
+export const followUser = async (
+  follower: { uid: string; name: string; username: string; avatarUrl: string },
+  targetUid: string
+): Promise<void> => {
+  if (!follower.uid || !targetUid || follower.uid === targetUid) return;
+
+  const targetFollowerRef = doc(db, 'users', targetUid, 'followers', follower.uid);
+  const followerFollowingRef = doc(db, 'users', follower.uid, 'following', targetUid);
+
+  // 1. Create follow records
+  await setDoc(targetFollowerRef, {
+    uid: follower.uid,
+    name: follower.name,
+    username: follower.username,
+    avatarUrl: follower.avatarUrl,
+    createdAt: serverTimestamp(),
+  });
+
+  await setDoc(followerFollowingRef, {
+    targetUid,
+    createdAt: serverTimestamp(),
+  });
+
+  // 2. Increment counters
+  try {
+    await updateDoc(doc(db, 'users', targetUid), {
+      followersCount: increment(1),
+    });
+    await updateDoc(doc(db, 'users', follower.uid), {
+      followingCount: increment(1),
+    });
+  } catch (err) {
+    console.warn("[followUser] Counter increment warning:", err);
+  }
+};
+
+export const unfollowUser = async (followerUid: string, targetUid: string): Promise<void> => {
+  if (!followerUid || !targetUid || followerUid === targetUid) return;
+
+  const targetFollowerRef = doc(db, 'users', targetUid, 'followers', followerUid);
+  const followerFollowingRef = doc(db, 'users', followerUid, 'following', targetUid);
+
+  await deleteDoc(targetFollowerRef);
+  await deleteDoc(followerFollowingRef);
+
+  // Decrement counters
+  try {
+    await updateDoc(doc(db, 'users', targetUid), {
+      followersCount: increment(-1),
+    });
+    await updateDoc(doc(db, 'users', followerUid), {
+      followingCount: increment(-1),
+    });
+  } catch (err) {
+    console.warn("[unfollowUser] Counter decrement warning:", err);
   }
 };
 

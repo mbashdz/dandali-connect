@@ -18,6 +18,12 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'Dandali Connect • African Social Network',
   description: 'Connecting communities across Africa with culturally rich social networking, voice posts, moments, and local marketplace.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Dandali',
+  },
 };
 
 export default function RootLayout({

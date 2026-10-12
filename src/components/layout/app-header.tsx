@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { NotificationsPopover } from "@/components/notifications-popover";
 
 export function AppHeader() {
   const { language, toggleLanguage, dataSaver, toggleDataSaver } = useAppSettings();
@@ -132,6 +133,9 @@ export function AppHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+
+          {/* In-App Notifications Bell */}
+          <NotificationsPopover />
 
           {/* User Profile Navigation */}
           <UserNav />

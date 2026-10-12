@@ -8,8 +8,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Edit3, UserPlus, Check, MapPin, Link2, MessageSquare } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { DirectMessageDialog } from "@/components/direct-message-dialog"
+import { useAuth } from "@/contexts/auth-context"
+import { useToast } from "@/hooks/use-toast"
+import { followUser, unfollowUser, checkIsFollowing } from "@/lib/firebase/users"
 
 interface ProfileHeaderProps {
   user: User;
@@ -17,8 +20,21 @@ interface ProfileHeaderProps {
 }
 
 export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
+  const { currentUser } = useAuth();
+  const { toast } = useToast();
   const [isFollowing, setIsFollowing] = useState(user.isFollowedByCurrentUser || false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
+  const [isUpdatingFollow, setIsUpdatingFollow] = useState(false);
+  const [followersCountState, setFollowersCountState] = useState(user.followersCount || 0);
+
+  useEffect(() => {
+    setFollowersCountState(user.followersCount || 0);
+    if (currentUser && user.uid && currentUser.uid !== user.uid) {
+      checkIsFollowing(currentUser.uid, user.uid).then((res) => {
+        setIsFollowing(res);
+      });
+    }
+  }, [currentUser, user.uid, user.followersCount]);
 
   const getInitials = (name: string) => {
     if (!name) return "DC";
@@ -27,16 +43,41 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
     return names[0][0].toUpperCase() + (names[names.length - 1]?.[0]?.toUpperCase() || '');
   }
   
-  const handleFollowToggle = () => {
-    setIsFollowing(!isFollowing);
-    // In a real app, you'd make an API call here to update follow status in Firestore
-    // For now, this only updates local state and mock counts
+  const handleFollowToggle = async () => {
+    if (!currentUser || isUpdatingFollow) return;
+    setIsUpdatingFollow(true);
+    const nextState = !isFollowing;
+    setIsFollowing(nextState);
+    setFollowersCountState((prev) => (nextState ? prev + 1 : Math.max(0, prev - 1)));
+
+    try {
+      if (nextState) {
+        await followUser(
+          {
+            uid: currentUser.uid,
+            name: currentUser.name || "Dandali Member",
+            username: currentUser.username || "user",
+            avatarUrl: currentUser.avatarUrl || "https://placehold.co/100x100.png",
+          },
+          user.uid
+        );
+        toast({ title: `Barka! Yanzu kana bin @${user.username}`, description: `You are now following ${user.name}` });
+      } else {
+        await unfollowUser(currentUser.uid, user.uid);
+        toast({ title: `Ka daina bin @${user.username}`, description: `Unfollowed ${user.name}` });
+      }
+    } catch (err: any) {
+      console.error("[handleFollowToggle] Error:", err);
+      // Revert on failure
+      setIsFollowing(!nextState);
+      setFollowersCountState((prev) => (!nextState ? prev + 1 : Math.max(0, prev - 1)));
+      toast({ variant: "destructive", title: "Error", description: err.message || "Failed to update follow status" });
+    } finally {
+      setIsUpdatingFollow(false);
+    }
   };
 
-  // Adjust follower count based on local follow state for immediate UI feedback
-  const displayFollowersCount = user.followersCount + 
-                                (isFollowing && !user.isFollowedByCurrentUser && !user.isCurrentUser ? 1 : 0) - 
-                                (!isFollowing && user.isFollowedByCurrentUser && !user.isCurrentUser ? 1 : 0);
+  const displayFollowersCount = followersCountState;
 
   return (
     <Card className="w-full overflow-hidden shadow-lg rounded-xl mb-6">

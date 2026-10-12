@@ -8,17 +8,45 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { signIn } from '@/lib/firebase/auth';
+import { signIn, resetPassword } from '@/lib/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { DandaliLogo } from '@/components/icons/dandali-logo';
-import { Sparkles, ShieldCheck, Heart } from 'lucide-react';
+import { Sparkles, ShieldCheck, Heart, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Shigar da Email (Enter Email)",
+        description: "Da fatan za a shigar da adireshin email dinka da farko don tura link din gyara kalmar sirri.",
+      });
+      return;
+    }
+    setIsResettingPassword(true);
+    try {
+      await resetPassword(email.trim());
+      toast({
+        title: "An Tura Link Din Gyara (Reset Link Sent)",
+        description: `Mun tura maka sakon gyara kalmar sirri zuwa ${email}. Duba akwatin sakonka.`,
+      });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Kuskure (Error)",
+        description: err.message || "Ba a sami nasarar tura sakon ba.",
+      });
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -82,6 +110,15 @@ export default function LoginPage() {
                 <Label htmlFor="password" className="text-xs font-bold text-foreground">
                   Password
                 </Label>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={isResettingPassword}
+                  className="text-[11px] font-semibold text-primary hover:underline hover:text-primary/90 flex items-center gap-1"
+                >
+                  {isResettingPassword && <Loader2 className="w-3 h-3 animate-spin" />}
+                  Mantawa da Kalmar Sirri? (Forgot?)
+                </button>
               </div>
               <Input
                 id="password"
