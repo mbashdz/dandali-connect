@@ -17,7 +17,9 @@ import {
   serverTimestamp,
   arrayUnion,
   arrayRemove,
-  limit
+  limit,
+  startAfter,
+  type DocumentSnapshot
 } from 'firebase/firestore';
 import type { Post, Comment as CommentType } from '@/types';
 
@@ -107,34 +109,61 @@ export const createPost = async (postData: CreatePostData): Promise<string> => {
   }
 };
 
-export const getGlobalPosts = async (limitCount: number = 20): Promise<Post[]> => {
+export interface PaginatedPostsResult {
+  posts: Post[];
+  lastVisibleDoc: DocumentSnapshot | null;
+  hasMore: boolean;
+}
+
+export const getGlobalPosts = async (
+  limitCount: number = 10,
+  lastDoc: DocumentSnapshot | null = null
+): Promise<PaginatedPostsResult> => {
   console.log("[getGlobalPosts] Attempting to fetch global posts, limit:", limitCount);
   try {
     const postsRef = collection(db, 'posts');
-    const q = query(postsRef, orderBy('timestamp', 'desc'), where('timestamp', '!=', null) , limit(limitCount));
-    console.log("[getGlobalPosts] Executing query...");
+    let q = query(
+      postsRef,
+      orderBy('timestamp', 'desc'),
+      where('timestamp', '!=', null),
+      limit(limitCount)
+    );
+
+    if (lastDoc) {
+      q = query(
+        postsRef,
+        orderBy('timestamp', 'desc'),
+        where('timestamp', '!=', null),
+        startAfter(lastDoc),
+        limit(limitCount)
+      );
+    }
+
     const querySnapshot = await getDocs(q);
-    console.log("[getGlobalPosts] Query successful, processing documents:", querySnapshot.size);
-    
     const posts: Post[] = [];
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
+    querySnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
       const postTimestamp = data.timestamp instanceof Timestamp ? data.timestamp.toDate().toISOString() : new Date().toISOString();
       posts.push({ 
-        id: doc.id, 
+        id: docSnap.id, 
         ...data,
         timestamp: postTimestamp,
         likedBy: data.likedBy || [],
       } as Post);
     });
-    console.log("[getGlobalPosts] Processed posts:", posts.length);
-    return posts;
+
+    const lastVisibleDoc = querySnapshot.docs.length > 0 
+      ? querySnapshot.docs[querySnapshot.docs.length - 1] 
+      : null;
+
+    return {
+      posts,
+      lastVisibleDoc,
+      hasMore: querySnapshot.docs.length === limitCount,
+    };
   } catch (error: any) {
     console.error("[getGlobalPosts] Error:", error.message, error.code, error);
-    if (error.code === 'permission-denied') {
-      console.error("[getGlobalPosts] Firestore permission denied. Check your security rules for 'posts' collection (read).");
-    }
-    return []; 
+    return { posts: [], lastVisibleDoc: null, hasMore: false }; 
   }
 };
 
@@ -228,13 +257,14 @@ export const addCommentToPost = async (
     authorName: string; 
     authorAvatarUrl: string; 
     content: string;
+    voiceNoteUrl?: string;
   }
 ): Promise<CommentType> => {
   const firebaseAuthCurrentUser = auth.currentUser;
   console.log(`[addCommentToPost] User ${commentData.authorUid} (SDK UID: ${firebaseAuthCurrentUser?.uid}) attempting to comment on post ${postId}`);
   
-  if (!commentData.authorUid || !commentData.content.trim()) {
-    throw new Error("Author UID and content are required for a comment.");
+  if (!commentData.authorUid || (!commentData.content.trim() && !commentData.voiceNoteUrl)) {
+    throw new Error("Author UID and content or voice note are required for a comment.");
   }
   if (!firebaseAuthCurrentUser || firebaseAuthCurrentUser.uid !== commentData.authorUid) {
      console.error(`[addCommentToPost] Auth mismatch or SDK user null. SDK UID: ${firebaseAuthCurrentUser?.uid}, commentData.authorUid: ${commentData.authorUid}`);
@@ -245,11 +275,14 @@ export const addCommentToPost = async (
   const commentsRef = collection(postRef, 'comments');
   
   try {
-    const newCommentPayload = {
+    const newCommentPayload: any = {
       ...commentData,
       postId: postId,
       timestamp: serverTimestamp(),
     };
+    if (commentData.voiceNoteUrl) {
+      newCommentPayload.voiceNoteUrl = commentData.voiceNoteUrl;
+    }
     console.log(`[addCommentToPost] Payload for new comment: ${JSON.stringify(newCommentPayload)}`);
     const commentDocRef = await addDoc(commentsRef, newCommentPayload);
     console.log(`[addCommentToPost] Comment added to post ${postId} with ID ${commentDocRef.id}`);

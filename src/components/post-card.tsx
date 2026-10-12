@@ -14,6 +14,8 @@ import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/contexts/auth-context" 
 import { useAppSettings } from "@/contexts/app-settings-context"
 import { toggleLikePost, addCommentToPost, getPostComments, setCulturalReaction, updatePostContent, deletePost } from "@/lib/firebase/posts"
+import { uploadFile } from "@/lib/firebase/storage"
+import { VoiceRecorder } from "@/components/voice-recorder"
 import { useToast } from "@/hooks/use-toast"
 import { CulturalReactionsPicker, CULTURAL_REACTIONS } from "@/components/cultural-reactions-picker"
 import { ReportDialog } from "@/components/report-dialog"
@@ -41,7 +43,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ShieldAlert, Flag } from "lucide-react"
+import { ShieldAlert, Flag, Play, Pause, X } from "lucide-react"
 
 interface PostCardProps {
   post: Post;
@@ -70,6 +72,11 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
   const [editContentText, setEditContentText] = useState(post.content || "");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Voice note comment state
+  const [isRecordingCommentVoice, setIsRecordingCommentVoice] = useState(false);
+  const [commentVoiceBlob, setCommentVoiceBlob] = useState<Blob | null>(null);
+  const [activeCommentAudioId, setActiveCommentAudioId] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -179,16 +186,23 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || !currentUser || isCommenting) return;
+    if ((!newComment.trim() && !commentVoiceBlob) || !currentUser || isCommenting) return;
 
     setIsCommenting(true);
     try {
+      let voiceNoteUrl: string | undefined = undefined;
+      if (commentVoiceBlob) {
+        const audioFile = new File([commentVoiceBlob], `comment_voice_${Date.now()}.webm`, { type: "audio/webm" });
+        voiceNoteUrl = await uploadFile(audioFile, `commentVoiceNotes/${currentUser.uid}`);
+      }
+
       const commentData = {
         authorUid: currentUser.uid,
         authorUsername: currentUser.username || 'anonymous',
         authorName: currentUser.name || 'Anonymous',
         authorAvatarUrl: currentUser.avatarUrl || 'https://placehold.co/100x100.png',
-        content: newComment,
+        content: newComment.trim() || (voiceNoteUrl ? "🎙️ Sakon Murya (Voice Note)" : ""),
+        voiceNoteUrl,
       };
       const addedComment = await addCommentToPost(post.id, commentData);
       setFetchedComments(prevComments => [addedComment, ...prevComments]);
@@ -196,7 +210,9 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
       setPost(updatedPost);
       if (onPostUpdate) onPostUpdate(updatedPost);
       setNewComment("");
-      toast({ title: "Comment posted!" });
+      setCommentVoiceBlob(null);
+      setIsRecordingCommentVoice(false);
+      toast({ title: "An aike da sharhi (Comment posted)!" });
     } catch (error) {
       console.error("Failed to post comment:", error);
       toast({ variant: "destructive", title: "Error", description: "Could not post comment." });
@@ -505,30 +521,70 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
             <Separator className="mb-4 opacity-60" />
 
             {currentUser && (
-              <form onSubmit={handleCommentSubmit} className="flex items-center space-x-2 mb-4">
-                <Avatar className="h-9 w-9 border border-border">
-                  <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name || ''} />
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
-                    {getInitials(currentUser.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <Textarea
-                  placeholder={t("writeComment")}
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  className="flex-grow min-h-[42px] max-h-24 resize-none rounded-xl text-sm"
-                  rows={1}
-                  disabled={isCommenting}
-                />
-                <Button
-                  type="submit"
-                  size="icon"
-                  className="rounded-xl h-10 w-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow"
-                  disabled={!newComment.trim() || isCommenting}
-                >
-                  {isCommenting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                </Button>
-              </form>
+              <div className="mb-4 space-y-2">
+                {isRecordingCommentVoice ? (
+                  <VoiceRecorder
+                    onAudioRecorded={(blob) => {
+                      setCommentVoiceBlob(blob);
+                      setIsRecordingCommentVoice(false);
+                      toast({ title: "Sakon Murya ya Shirya", description: "Zaka iya aikawa yanzu." });
+                    }}
+                    onCancel={() => setIsRecordingCommentVoice(false)}
+                    disabled={isCommenting}
+                  />
+                ) : commentVoiceBlob ? (
+                  <div className="p-2.5 bg-primary/10 border border-primary/30 rounded-2xl flex items-center justify-between">
+                    <span className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                      <Mic className="w-3.5 h-3.5" /> Sakon murya yana nan (Voice attached)
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs text-destructive h-7 px-2"
+                      onClick={() => setCommentVoiceBlob(null)}
+                    >
+                      <X className="w-3.5 h-3.5 mr-1" /> Share
+                    </Button>
+                  </div>
+                ) : null}
+
+                <form onSubmit={handleCommentSubmit} className="flex items-center space-x-2">
+                  <Avatar className="h-9 w-9 border border-border">
+                    <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name || ''} />
+                    <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                      {getInitials(currentUser.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <Textarea
+                    placeholder={t("writeComment")}
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    className="flex-grow min-h-[42px] max-h-24 resize-none rounded-xl text-sm"
+                    rows={1}
+                    disabled={isCommenting}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsRecordingCommentVoice(true)}
+                    className="rounded-xl h-10 w-10 text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
+                    disabled={isCommenting || isRecordingCommentVoice}
+                    title="Sharhin Murya (Voice Comment)"
+                  >
+                    <Mic className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="icon"
+                    className="rounded-xl h-10 w-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow"
+                    disabled={(!newComment.trim() && !commentVoiceBlob) || isCommenting}
+                  >
+                    {isCommenting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </Button>
+                </form>
+              </div>
             )}
 
             {isLoadingComments ? (
@@ -554,7 +610,39 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
                           {comment.timestamp ? formatDistanceToNowStrict(new Date(comment.timestamp), { addSuffix: true }) : 'just now'}
                         </span>
                       </div>
-                      <p className="text-sm leading-relaxed">{comment.content}</p>
+                      {comment.content && <p className="text-sm leading-relaxed mb-1.5">{comment.content}</p>}
+                      {comment.voiceNoteUrl && (
+                        <div className="mt-2 flex items-center gap-2 p-2 rounded-xl bg-background/80 border border-border/60">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 rounded-full bg-primary/10 text-primary"
+                            onClick={() => {
+                              const audioElem = document.getElementById(`audio-comment-${comment.id}`) as HTMLAudioElement;
+                              if (!audioElem) return;
+                              if (activeCommentAudioId === comment.id) {
+                                audioElem.pause();
+                                setActiveCommentAudioId(null);
+                              } else {
+                                audioElem.play();
+                                setActiveCommentAudioId(comment.id);
+                              }
+                            }}
+                          >
+                            {activeCommentAudioId === comment.id ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 ml-0.5" />}
+                          </Button>
+                          <span className="text-xs font-semibold text-foreground">
+                            {language === "ha" ? "Saurari Sharhin Murya" : "Listen to Voice Comment"}
+                          </span>
+                          <audio
+                            id={`audio-comment-${comment.id}`}
+                            src={comment.voiceNoteUrl}
+                            onEnded={() => setActiveCommentAudioId(null)}
+                            className="hidden"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

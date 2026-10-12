@@ -5,7 +5,7 @@ import { PostCard } from "@/components/post-card";
 import { StoriesCarousel } from "@/components/stories-carousel";
 import { VoiceRecorder } from "@/components/voice-recorder";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Image as ImageIcon, Mic, Loader2, X, Sparkles, TrendingUp, Users } from "lucide-react";
+import { PlusCircle, Image as ImageIcon, Mic, Loader2, X, Sparkles, TrendingUp, Users, Play, Pause, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
@@ -16,6 +16,7 @@ import { createPost, getGlobalPosts } from "@/lib/firebase/posts";
 import { getSuggestedUsers } from "@/lib/firebase/users";
 import { uploadFile } from "@/lib/firebase/storage";
 import type { Post as PostType, User } from "@/types";
+import type { DocumentSnapshot } from "firebase/firestore";
 import NextImage from "next/image";
 import Link from "next/link";
 
@@ -28,10 +29,17 @@ export default function NewsFeedPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null);
+  const [voiceAudioUrl, setVoiceAudioUrl] = useState<string | null>(null);
+  const [isPlayingVoicePreview, setIsPlayingVoicePreview] = useState(false);
+  const voiceAudioPreviewRef = useRef<HTMLAudioElement | null>(null);
+
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [posts, setPosts] = useState<PostType[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const [lastVisibleDoc, setLastVisibleDoc] = useState<DocumentSnapshot | null>(null);
+  const [hasMorePosts, setHasMorePosts] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [suggestedUsers, setSuggestedUsers] = useState<User[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -45,8 +53,10 @@ export default function NewsFeedPage() {
   const fetchPosts = useCallback(async () => {
     setIsLoadingPosts(true);
     try {
-      const fetchedPosts = await getGlobalPosts();
-      setPosts(fetchedPosts);
+      const result = await getGlobalPosts(10);
+      setPosts(result.posts);
+      setLastVisibleDoc(result.lastVisibleDoc);
+      setHasMorePosts(result.hasMore);
     } catch (error) {
       console.error("[NewsFeedPage] Error fetching posts:", error);
       toast({ variant: "destructive", title: "Error", description: "Could not load posts." });
@@ -54,6 +64,22 @@ export default function NewsFeedPage() {
       setIsLoadingPosts(false);
     }
   }, [toast]);
+
+  const handleLoadMore = async () => {
+    if (!lastVisibleDoc || isLoadingMore || !hasMorePosts) return;
+    setIsLoadingMore(true);
+    try {
+      const result = await getGlobalPosts(10, lastVisibleDoc);
+      setPosts((prev) => [...prev, ...result.posts]);
+      setLastVisibleDoc(result.lastVisibleDoc);
+      setHasMorePosts(result.hasMore);
+    } catch (error) {
+      console.error("[NewsFeedPage] Error loading more posts:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not load more posts." });
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading) {
@@ -78,13 +104,38 @@ export default function NewsFeedPage() {
     }
   };
 
+  const removeVoice = () => {
+    if (voiceAudioUrl) {
+      URL.revokeObjectURL(voiceAudioUrl);
+    }
+    setVoiceBlob(null);
+    setVoiceAudioUrl(null);
+    setIsPlayingVoicePreview(false);
+  };
+
   const handleVoiceRecorded = (blob: Blob, duration: number) => {
+    if (voiceAudioUrl) {
+      URL.revokeObjectURL(voiceAudioUrl);
+    }
+    const audioUrl = URL.createObjectURL(blob);
     setVoiceBlob(blob);
+    setVoiceAudioUrl(audioUrl);
     setIsRecordingVoice(false);
     toast({
-      title: "Voice Note Attached",
-      description: `Recorded audio message ready to share with community.`,
+      title: "Murya ta Shirya (Voice Note Attached)",
+      description: `Zaka iya saurara kafin ka tura (You can listen before sharing).`,
     });
+  };
+
+  const toggleVoicePreviewPlayback = () => {
+    if (!voiceAudioPreviewRef.current) return;
+    if (isPlayingVoicePreview) {
+      voiceAudioPreviewRef.current.pause();
+      setIsPlayingVoicePreview(false);
+    } else {
+      voiceAudioPreviewRef.current.play();
+      setIsPlayingVoicePreview(true);
+    }
   };
 
   const handlePostSubmit = async () => {
@@ -136,7 +187,7 @@ export default function NewsFeedPage() {
       });
       setPostContent("");
       removeImage();
-      setVoiceBlob(null);
+      removeVoice();
       fetchPosts();
     } catch (error: any) {
       console.error("[NewsFeedPage] Error creating post:", error);
@@ -278,21 +329,41 @@ export default function NewsFeedPage() {
                       disabled={isPosting}
                     />
                   </div>
-                ) : voiceBlob ? (
+                ) : voiceBlob && voiceAudioUrl ? (
                   <div className="mb-3 p-3 bg-primary/10 border border-primary/30 rounded-2xl flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Mic className="w-4 h-4 text-primary" />
-                      <span className="text-xs font-semibold text-foreground">
-                        Voice Note Attached (Audio)
-                      </span>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="secondary"
+                        className="h-8 w-8 rounded-full shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                        onClick={toggleVoicePreviewPlayback}
+                      >
+                        {isPlayingVoicePreview ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
+                      </Button>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <Mic className="w-3.5 h-3.5 text-primary" />
+                          {language === "ha" ? "Murya ta Shirya (Voice Note)" : "Voice Note Attached"}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {language === "ha" ? "Danna domin saurara" : "Click to preview audio"}
+                        </span>
+                      </div>
+                      <audio
+                        ref={voiceAudioPreviewRef}
+                        src={voiceAudioUrl}
+                        onEnded={() => setIsPlayingVoicePreview(false)}
+                        className="hidden"
+                      />
                     </div>
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => setVoiceBlob(null)}
-                      className="text-xs text-destructive h-7 px-2"
+                      onClick={removeVoice}
+                      className="text-xs text-destructive hover:bg-destructive/10 rounded-xl h-8 px-2.5"
                     >
-                      Remove
+                      {language === "ha" ? "Share" : "Remove"}
                     </Button>
                   </div>
                 ) : null}
@@ -358,6 +429,30 @@ export default function NewsFeedPage() {
               {posts.map((post) => (
                 <PostCard key={post.id} post={post} onPostUpdate={handlePostUpdateInList} />
               ))}
+
+              {/* Load More Pagination */}
+              {hasMorePosts && (
+                <div className="flex justify-center pt-4 pb-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleLoadMore}
+                    disabled={isLoadingMore}
+                    className="rounded-2xl px-6 py-5 border-primary/30 font-bold hover:bg-primary/10 gap-2 shadow-xs transition-all"
+                  >
+                    {isLoadingMore ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <span>{language === "ha" ? "Ana lodawa..." : "Loading more posts..."}</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-4 h-4 text-primary" />
+                        <span>{language === "ha" ? "Kara Wasu Sakonni (Load More)" : "Load More Posts"}</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-16 bg-card rounded-3xl border border-dashed border-border p-8">

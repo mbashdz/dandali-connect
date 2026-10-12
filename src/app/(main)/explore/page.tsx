@@ -31,8 +31,8 @@ export default function ExplorePage() {
     const fetchTrending = async () => {
       setLoadingPosts(true);
       try {
-        const posts = await getGlobalPosts(9); 
-        setTrendingPosts(posts);
+        const result = await getGlobalPosts(9); 
+        setTrendingPosts(result.posts);
       } catch (error) {
         console.error("Error fetching trending posts:", error);
       } finally {
