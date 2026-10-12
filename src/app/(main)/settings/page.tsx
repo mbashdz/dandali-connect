@@ -29,6 +29,7 @@ export default function SettingsPage() {
   const [location, setLocation] = useState(currentUser?.location || "");
   const [website, setWebsite] = useState(currentUser?.website || "");
   const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatarUrl || "");
+  const [hideFollowersCount, setHideFollowersCount] = useState(currentUser?.hideFollowersCount || false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -42,6 +43,7 @@ export default function SettingsPage() {
       setLocation(currentUser.location || "");
       setWebsite(currentUser.website || "");
       setAvatarUrl(currentUser.avatarUrl || "");
+      setHideFollowersCount(currentUser.hideFollowersCount || false);
     }
   }, [currentUser]);
 
@@ -83,6 +85,7 @@ export default function SettingsPage() {
         location,
         website,
         avatarUrl,
+        hideFollowersCount,
       };
       
       await updateUserProfile(currentUser.uid, updatedData);
@@ -292,6 +295,36 @@ export default function SettingsPage() {
             <Switch 
               checked={dataSaver} 
               onCheckedChange={setDataSaver}
+            />
+          </div>
+
+          {/* Privacy: Hide Followers Count */}
+          <div className="flex items-center justify-between p-3.5 rounded-2xl border border-border/60 bg-muted/20">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="w-5 h-5 text-primary" />
+              <div>
+                <p className="text-xs font-bold text-foreground">
+                  {language === "ha" ? "Boye Yawan Masoya (Hide Followers Count)" : "Hide Follower Counts to Public"}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {language === "ha"
+                    ? "Kada a nuna adadin mabiyanka a fili ga sauran masu ziyartar shafinka."
+                    : "When enabled, visitors to your profile will not see your follower count."}
+                </p>
+              </div>
+            </div>
+            <Switch 
+              checked={hideFollowersCount} 
+              onCheckedChange={async (val) => {
+                setHideFollowersCount(val);
+                if (currentUser) {
+                  await updateUserProfile(currentUser.uid, { hideFollowersCount: val });
+                  toast({
+                    title: val ? "Follower Count Hidden" : "Follower Count Visible",
+                    description: val ? "Public will no longer see your follower numbers." : "Public can now see your follower numbers.",
+                  });
+                }
+              }}
             />
           </div>
 

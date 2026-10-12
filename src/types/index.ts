@@ -16,6 +16,7 @@ export interface User {
   isCurrentUser?: boolean; 
   isFollowedByCurrentUser?: boolean; 
   verified?: boolean; // African creator / community leader badge
+  hideFollowersCount?: boolean; // Privacy setting to hide follower counts from public
 }
 
 export type CulturalReactionType = 'kauna' | 'madalla' | 'wuta' | 'dariya' | 'alheri';
@@ -95,4 +96,26 @@ export interface KasuwaItem {
   sellerAvatarUrl: string;
   createdAt: string;
   isSold?: boolean;
+}
+
+export interface DirectMessage {
+  id: string;
+  senderUid: string;
+  senderName: string;
+  senderAvatarUrl: string;
+  recipientUid: string;
+  recipientName: string;
+  text: string;
+  createdAt: string;
+  read?: boolean;
+}
+
+export interface Conversation {
+  id: string; // Composite: [uid1, uid2].sort().join('_')
+  participants: string[]; // [uid1, uid2]
+  participantData: Record<string, { name: string; username: string; avatarUrl: string }>;
+  lastMessage: string;
+  lastSenderUid: string;
+  updatedAt: string;
+  unreadCount?: Record<string, number>;
 }

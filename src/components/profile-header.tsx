@@ -7,8 +7,9 @@ import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Edit3, UserPlus, Check, MapPin, Link2 } from "lucide-react"
+import { Edit3, UserPlus, Check, MapPin, Link2, MessageSquare } from "lucide-react"
 import { useState } from "react"
+import { DirectMessageDialog } from "@/components/direct-message-dialog"
 
 interface ProfileHeaderProps {
   user: User;
@@ -17,6 +18,7 @@ interface ProfileHeaderProps {
 
 export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
   const [isFollowing, setIsFollowing] = useState(user.isFollowedByCurrentUser || false);
+  const [isMessageOpen, setIsMessageOpen] = useState(false);
 
   const getInitials = (name: string) => {
     if (!name) return "DC";
@@ -63,23 +65,33 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
             <h1 className="text-2xl md:text-3xl font-bold">{user.name}</h1>
             <p className="text-sm text-muted-foreground">@{user.username}</p>
           </div>
-          <div className="sm:ml-auto pt-2 sm:pt-0">
+          <div className="sm:ml-auto pt-2 sm:pt-0 flex items-center gap-2">
             {user.isCurrentUser && onEditProfile ? (
-              <Button variant="outline" onClick={onEditProfile}>
+              <Button variant="outline" onClick={onEditProfile} className="rounded-xl">
                 <Edit3 className="mr-2 h-4 w-4" /> Edit Profile
               </Button>
             ) : !user.isCurrentUser ? (
-              <Button onClick={handleFollowToggle} variant={isFollowing ? "secondary" : "default"}>
-                {isFollowing ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" /> Following
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="mr-2 h-4 w-4" /> Follow
-                  </>
-                )}
-              </Button>
+              <>
+                <Button onClick={handleFollowToggle} variant={isFollowing ? "secondary" : "default"} className="rounded-xl">
+                  {isFollowing ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" /> Following
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="mr-2 h-4 w-4" /> Follow
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsMessageOpen(true)}
+                  className="rounded-xl border-primary/40 text-primary hover:bg-primary/10 gap-1.5"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  <span>Sako (Message)</span>
+                </Button>
+              </>
             ) : null}
           </div>
         </div>
@@ -105,16 +117,34 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
 
         <div className="mt-4 flex justify-center sm:justify-start space-x-6 text-sm">
           <div>
-            <span className="font-semibold">{user.postsCount}</span> Posts
+            <span className="font-semibold">{user.postsCount || 0}</span> Posts
           </div>
+          {(!user.hideFollowersCount || user.isCurrentUser) ? (
+            <div>
+              <span className="font-semibold">{displayFollowersCount}</span> Followers
+              {user.hideFollowersCount && user.isCurrentUser && (
+                <span className="ml-1 text-[10px] text-muted-foreground italic">(Hidden to public)</span>
+              )}
+            </div>
+          ) : (
+            <div className="text-muted-foreground text-xs flex items-center">
+              <span>Followers hidden</span>
+            </div>
+          )}
           <div>
-            <span className="font-semibold">{displayFollowersCount}</span> Followers
-          </div>
-          <div>
-            <span className="font-semibold">{user.followingCount}</span> Following
+            <span className="font-semibold">{user.followingCount || 0}</span> Following
           </div>
         </div>
       </CardContent>
+
+      {/* Direct Message Dialog */}
+      {!user.isCurrentUser && (
+        <DirectMessageDialog
+          isOpen={isMessageOpen}
+          onClose={() => setIsMessageOpen(false)}
+          recipientUser={user}
+        />
+      )}
     </Card>
   )
 }
