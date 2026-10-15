@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "402973906162",
+    "project_id": "lexaid-nigeria",
+    "storage_bucket": "lexaid-nigeria.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:402973906162:android:94d7fa61540acd3baaac6b",
+        "android_client_info": {
+          "package_name": "com.dandali.connect"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "402973906162-kvhiec1a5250kfaa4lpfofho7icd3q3f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dandali.connect",
+            "certificate_hash": "82f375d5a353a618959e1048606a73677b62309b"
+          }
+        },
+        {
+          "client_id": "402973906162-ri4ckvc2a861i4djdj4nv88nhm1acb54.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUv8E0-5OhXV8mK13Ym8HOrzP58o4OL24"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "402973906162-ri4ckvc2a861i4djdj4nv88nhm1acb54.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

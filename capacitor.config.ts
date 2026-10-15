@@ -12,6 +12,12 @@ const config: CapacitorConfig = {
     allowMixedContent: true,
     backgroundColor: '#120E0C',
   },
+  plugins: {
+    FirebaseAuthentication: {
+      skipNativeAuth: false,
+      providers: ['google.com'],
+    },
+  },
 };
 
 export default config;

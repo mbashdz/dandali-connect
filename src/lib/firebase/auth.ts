@@ -8,9 +8,12 @@ import {
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithCredential,
   sendPasswordResetEmail,
   type User as FirebaseUser
 } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import type { User } from '@/types';
 
@@ -84,8 +87,24 @@ export const signIn = async (email: string, password: string) => {
 
 export const signInWithGoogle = async () => {
   console.log("[signInWithGoogle] Attempting Google sign-in.");
-  const result = await signInWithPopup(auth, googleProvider);
-  const user = result.user;
+  let user: FirebaseUser;
+
+  if (Capacitor.isNativePlatform()) {
+    console.log("[signInWithGoogle] Native platform detected. Using FirebaseAuthentication plugin.");
+    const result = await FirebaseAuthentication.signInWithGoogle();
+    const idToken = result.credential?.idToken;
+    if (!idToken) {
+      throw new Error("No ID token returned from Google Sign-In");
+    }
+    const credential = GoogleAuthProvider.credential(idToken);
+    const authResult = await signInWithCredential(auth, credential);
+    user = authResult.user;
+  } else {
+    console.log("[signInWithGoogle] Web platform detected. Using signInWithPopup.");
+    const result = await signInWithPopup(auth, googleProvider);
+    user = result.user;
+  }
+
   await createUserProfileDocument(user, {
     name: user.displayName || user.email?.split('@')[0] || 'Dandali User',
     avatarUrl: user.photoURL || 'https://placehold.co/100x100.png',
@@ -100,6 +119,13 @@ export const resetPassword = async (email: string) => {
 
 export const doSignOut = async () => {
   console.log("[signOut] Attempting sign-out.");
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await FirebaseAuthentication.signOut();
+    } catch (e) {
+      console.warn("[signOut] Native signOut error:", e);
+    }
+  }
   return signOut(auth);
 };
 
