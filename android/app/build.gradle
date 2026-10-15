@@ -4,7 +4,7 @@ android {
     namespace = "com.dandali.connect"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.dandali.connect"
+        applicationId "com.zaure.connect"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { MessageCircle, Heart, Share2, Send, MoreHorizontal, Mic, Loader2, Sparkles, Volume2, Pencil, Trash2 } from "lucide-react"
+import { MessageCircle, Heart, Share2, Send, MoreHorizontal, Mic, Loader2, Sparkles, Volume2, Pencil, Trash2, Maximize2 } from "lucide-react"
 import { formatDistanceToNowStrict } from 'date-fns'
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Textarea } from "@/components/ui/textarea" 
@@ -19,6 +19,7 @@ import { VoiceRecorder } from "@/components/voice-recorder"
 import { useToast } from "@/hooks/use-toast"
 import { CulturalReactionsPicker, CULTURAL_REACTIONS } from "@/components/cultural-reactions-picker"
 import { ReportDialog } from "@/components/report-dialog"
+import { ImageLightbox } from "@/components/ui/image-lightbox"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -81,6 +82,10 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const isAuthor = currentUser?.uid === post.authorUid;
+
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const allImages = post.imageUrls && post.imageUrls.length > 0 ? post.imageUrls : post.imageUrl ? [post.imageUrl] : [];
 
   const currentUserReaction = currentUser ? (post.reactions?.[currentUser.uid] || null) : null;
   const isLikedByCurrentUser = !!currentUserReaction || (currentUser ? post.likedBy?.includes(currentUser.uid) : false);
@@ -384,37 +389,122 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
           </div>
         )}
 
-        {/* Image Post with Data-Saver & Fast CDN support */}
-        {post.imageUrl && (
+        {/* Image Post(s) with Multi-photo grid and Lightbox support */}
+        {allImages.length > 0 && (
           <div className="mt-2.5 rounded-2xl overflow-hidden border border-border/60 relative group bg-muted/30">
-            {dataSaver ? (
-              <div className="w-full flex flex-col items-center justify-center p-4 bg-muted/60 text-center">
-                <Sparkles className="w-6 h-6 text-secondary mb-1" />
-                <p className="text-xs font-semibold text-foreground">Data Saver Mode Active</p>
-                <p className="text-[11px] text-muted-foreground mb-2">Image compressed for fast low-bandwidth loading</p>
+            {allImages.length === 1 ? (
+              <div
+                onClick={() => {
+                  setLightboxIndex(0);
+                  setLightboxOpen(true);
+                }}
+                className="relative w-full aspect-[4/3] sm:aspect-video max-h-[480px] cursor-pointer overflow-hidden group/img"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={post.imageUrl}
-                  alt="Post"
-                  loading="lazy"
-                  decoding="async"
-                  className="max-h-48 rounded-xl object-contain shadow mx-auto"
-                />
-              </div>
-            ) : (
-              <div className="relative w-full aspect-[4/3] sm:aspect-video max-h-[480px]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={post.imageUrl}
+                  src={allImages[0]}
                   alt="Post content"
                   loading="lazy"
                   decoding="async"
-                  className="object-cover w-full h-full group-hover:scale-[1.01] transition-transform duration-300"
+                  className="object-cover w-full h-full group-hover/img:scale-[1.02] transition-transform duration-300"
                   onError={(e) => {
-                    // Fallback to placeholder if broken or storage network blocked
-                    (e.target as HTMLImageElement).src = "https://placehold.co/600x400/png?text=Dandali+Photo";
+                    (e.target as HTMLImageElement).src = "https://placehold.co/600x400/png?text=Zaure+Photo";
                   }}
                 />
+                <div className="absolute bottom-2.5 right-2.5 p-2 rounded-full bg-black/60 text-white opacity-80 sm:opacity-0 group-hover/img:opacity-100 transition-opacity backdrop-blur-sm">
+                  <Maximize2 className="w-4 h-4" />
+                </div>
+              </div>
+            ) : allImages.length === 2 ? (
+              <div className="grid grid-cols-2 gap-1.5 aspect-[4/3] sm:aspect-[16/9]">
+                {allImages.map((img, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      setLightboxIndex(idx);
+                      setLightboxOpen(true);
+                    }}
+                    className="relative w-full h-full cursor-pointer overflow-hidden group/img bg-black/5"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img}
+                      alt={`Post photo ${idx + 1}`}
+                      loading="lazy"
+                      decoding="async"
+                      className="object-cover w-full h-full group-hover/img:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : allImages.length === 3 ? (
+              <div className="grid grid-cols-2 gap-1.5 aspect-[4/3] sm:aspect-[16/9]">
+                <div
+                  onClick={() => {
+                    setLightboxIndex(0);
+                    setLightboxOpen(true);
+                  }}
+                  className="relative w-full h-full cursor-pointer overflow-hidden group/img row-span-2 bg-black/5"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={allImages[0]}
+                    alt="Post photo 1"
+                    loading="lazy"
+                    decoding="async"
+                    className="object-cover w-full h-full group-hover/img:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                {allImages.slice(1, 3).map((img, idx) => (
+                  <div
+                    key={idx + 1}
+                    onClick={() => {
+                      setLightboxIndex(idx + 1);
+                      setLightboxOpen(true);
+                    }}
+                    className="relative w-full h-full cursor-pointer overflow-hidden group/img bg-black/5"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img}
+                      alt={`Post photo ${idx + 2}`}
+                      loading="lazy"
+                      decoding="async"
+                      className="object-cover w-full h-full group-hover/img:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-1.5 aspect-[4/3] sm:aspect-[16/9]">
+                {allImages.slice(0, 4).map((img, idx) => {
+                  const isFourth = idx === 3;
+                  const remainingCount = allImages.length - 4;
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setLightboxIndex(idx);
+                        setLightboxOpen(true);
+                      }}
+                      className="relative w-full h-full cursor-pointer overflow-hidden group/img bg-black/5"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={img}
+                        alt={`Post photo ${idx + 1}`}
+                        loading="lazy"
+                        decoding="async"
+                        className="object-cover w-full h-full group-hover/img:scale-105 transition-transform duration-300"
+                      />
+                      {isFourth && remainingCount > 0 && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-bold text-xl sm:text-2xl backdrop-blur-sm">
+                          +{remainingCount}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -715,7 +805,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
               Goge wannan sakon? (Delete Post)
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              Shin ka tabbata kana son goge wannan sakon daga Dandali Connect? Ba za a iya dawo da shi ba idan an goge.
+              Shin ka tabbata kana son goge wannan sakon daga Zaure Connect? Ba za a iya dawo da shi ba idan an goge.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex gap-2 mt-2">
@@ -736,6 +826,15 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Full-screen Image Lightbox */}
+      <ImageLightbox
+        isOpen={lightboxOpen}
+        images={allImages}
+        initialIndex={lightboxIndex}
+        onClose={() => setLightboxOpen(false)}
+        title={post.authorName ? `${post.authorName}'s photos` : undefined}
+      />
     </Card>
   )
 }

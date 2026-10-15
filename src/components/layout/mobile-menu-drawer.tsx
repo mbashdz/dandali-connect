@@ -186,12 +186,12 @@ export function MobileMenuDrawer() {
             <div className="p-4 rounded-2xl bg-card border border-border/70 text-center space-y-2">
               <p className="text-xs text-muted-foreground">
                 {language === "ha"
-                  ? "Shiga domin more duk ayyukan Dandali Connect"
-                  : "Sign in to unlock all Dandali features"}
+                  ? "Shiga domin more duk ayyukan Zaure Connect"
+                  : "Sign in to unlock all Zaure Connect features"}
               </p>
               <Button asChild size="sm" className="w-full rounded-xl font-bold bg-primary text-primary-foreground">
                 <Link href="/login" onClick={() => setOpen(false)}>
-                  {language === "ha" ? "Shiga Dandali (Log In)" : "Log In"}
+                  {language === "ha" ? "Shiga Zaure Connect (Log In)" : "Log In"}
                 </Link>
               </Button>
             </div>
@@ -377,13 +377,13 @@ export function MobileMenuDrawer() {
               className="w-full rounded-2xl h-11 border-destructive/30 text-destructive hover:bg-destructive/10 font-bold text-xs gap-2"
             >
               <LogOut className="w-4 h-4" />
-              <span>{language === "ha" ? "Fita Daga Dandali (Log Out)" : "Log Out"}</span>
+              <span>{language === "ha" ? "Fita Daga Zaure (Log Out)" : "Log Out"}</span>
             </Button>
           )}
 
           <div className="text-center pt-2 pb-4">
             <p className="text-[11px] text-muted-foreground font-semibold">
-              Dandali Connect Africa • v1.0.0
+              Zaure Connect Africa • v1.0.0
             </p>
           </div>
         </div>

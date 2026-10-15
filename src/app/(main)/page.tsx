@@ -17,7 +17,6 @@ import { getSuggestedUsers } from "@/lib/firebase/users";
 import { uploadFile } from "@/lib/firebase/storage";
 import type { Post as PostType, User } from "@/types";
 import type { DocumentSnapshot } from "firebase/firestore";
-import NextImage from "next/image";
 import Link from "next/link";
 
 export default function NewsFeedPage() {
@@ -26,8 +25,8 @@ export default function NewsFeedPage() {
   const { language, t } = useAppSettings();
 
   const [postContent, setPostContent] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null);
   const [voiceAudioUrl, setVoiceAudioUrl] = useState<string | null>(null);
   const [isPlayingVoicePreview, setIsPlayingVoicePreview] = useState(false);
@@ -89,16 +88,27 @@ export default function NewsFeedPage() {
   }, [authLoading, fetchPosts, currentUser?.uid]);
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
+    if (event.target.files && event.target.files.length > 0) {
+      const selectedFiles = Array.from(event.target.files);
+      const combined = [...imageFiles, ...selectedFiles].slice(0, 6);
+      setImageFiles(combined);
+      setImagePreviews(combined.map((file) => URL.createObjectURL(file)));
     }
   };
 
-  const removeImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
+  const removeImage = (indexToRemove: number) => {
+    const newFiles = imageFiles.filter((_, idx) => idx !== indexToRemove);
+    const newPreviews = imagePreviews.filter((_, idx) => idx !== indexToRemove);
+    setImageFiles(newFiles);
+    setImagePreviews(newPreviews);
+    if (newFiles.length === 0 && imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  };
+
+  const clearAllImages = () => {
+    setImageFiles([]);
+    setImagePreviews([]);
     if (imageInputRef.current) {
       imageInputRef.current.value = "";
     }
@@ -139,11 +149,11 @@ export default function NewsFeedPage() {
   };
 
   const handlePostSubmit = async () => {
-    if (!postContent.trim() && !imageFile && !voiceBlob) {
+    if (!postContent.trim() && imageFiles.length === 0 && !voiceBlob) {
       toast({
         variant: "destructive",
         title: "Empty post",
-        description: "Please write something, record a voice note, or add an image.",
+        description: "Please write something, record a voice note, or add photos.",
       });
       return;
     }
@@ -152,18 +162,20 @@ export default function NewsFeedPage() {
       toast({
         variant: "destructive",
         title: "Authentication Error",
-        description: "Please log in to share on Dandali.",
+        description: "Please log in to share on Zaure Connect.",
       });
       return;
     }
 
     setIsPosting(true);
-    let imageUrl: string | undefined = undefined;
+    let imageUrls: string[] = [];
     let voiceNoteUrl: string | undefined = undefined;
 
     try {
-      if (imageFile) {
-        imageUrl = await uploadFile(imageFile, `postImages/${currentUser.uid}`);
+      if (imageFiles.length > 0) {
+        imageUrls = await Promise.all(
+          imageFiles.map((file) => uploadFile(file, `postImages/${currentUser.uid}`))
+        );
       }
 
       if (voiceBlob) {
@@ -177,16 +189,17 @@ export default function NewsFeedPage() {
         authorUsername: currentUser.username,
         authorName: currentUser.name,
         authorAvatarUrl: currentUser.avatarUrl || "https://placehold.co/100x100.png",
-        imageUrl,
+        imageUrl: imageUrls[0] || undefined,
+        imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
         voiceNoteUrl,
       });
 
       toast({
         title: "Post Published!",
-        description: "Your post is now live on Dandali Connect.",
+        description: "Your post is now live on Zaure Connect.",
       });
       setPostContent("");
-      removeImage();
+      clearAllImages();
       removeVoice();
       fetchPosts();
     } catch (error: any) {
@@ -232,7 +245,7 @@ export default function NewsFeedPage() {
                 { tag: "#ArewaTech", count: "14.2k posts" },
                 { tag: "#KasuwarKwari", count: "8.5k posts" },
                 { tag: "#HausaCinema", count: "19.8k posts" },
-                { tag: "#DandaliMoments", count: "6.1k posts" },
+                { tag: "#ZaureMoments", count: "6.1k posts" },
                 { tag: "#AfricanHeritage", count: "25.3k posts" },
               ].map((item) => (
                 <Link
@@ -247,11 +260,11 @@ export default function NewsFeedPage() {
             </div>
           </Card>
 
-          {/* Dandali Kasuwa Quick Card */}
+          {/* Zaure Kasuwa Quick Card */}
           <Card className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-amber-500/10 to-transparent p-5 shadow-xs">
             <Sparkles className="w-6 h-6 text-primary mb-2" />
             <h4 className="text-sm font-bold text-foreground mb-1">
-              {language === "ha" ? "Bude Kasuwancin Ka" : "Trade on Dandali Kasuwa"}
+              {language === "ha" ? "Bude Kasuwancin Ka" : "Trade on Zaure Kasuwa"}
             </h4>
             <p className="text-xs text-muted-foreground leading-relaxed mb-4">
               Sell traditional attire, agricultural harvests, phones, and services with 0 middleman fees.
@@ -298,25 +311,38 @@ export default function NewsFeedPage() {
                   disabled={isPosting}
                 />
 
-                {/* Image preview */}
-                {imagePreview && (
-                  <div className="mb-3 relative w-full rounded-2xl overflow-hidden border">
-                    <NextImage
-                      src={imagePreview}
-                      alt="Image preview"
-                      width={600}
-                      height={400}
-                      className="rounded-2xl object-cover max-h-72 w-full"
-                    />
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 h-7 w-7 rounded-full shadow"
-                      onClick={removeImage}
-                      disabled={isPosting}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                {/* Multi-image preview grid */}
+                {imagePreviews.length > 0 && (
+                  <div className={`mb-3 grid gap-2 ${
+                    imagePreviews.length === 1
+                      ? "grid-cols-1"
+                      : imagePreviews.length === 2
+                      ? "grid-cols-2"
+                      : "grid-cols-2 sm:grid-cols-3"
+                  }`}>
+                    {imagePreviews.map((preview, idx) => (
+                      <div key={idx} className="relative rounded-2xl overflow-hidden border border-border/60 aspect-video sm:aspect-square bg-muted/30 group">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={preview}
+                          alt={`Preview ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full shadow-md"
+                          onClick={() => removeImage(idx)}
+                          disabled={isPosting}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                        <span className="absolute bottom-1 left-2 text-[10px] bg-black/60 text-white font-medium px-1.5 py-0.5 rounded-full">
+                          {idx + 1}/{imagePreviews.length}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
 
@@ -371,6 +397,7 @@ export default function NewsFeedPage() {
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   ref={imageInputRef}
                   onChange={handleImageChange}
                   className="hidden"
@@ -380,14 +407,15 @@ export default function NewsFeedPage() {
                 <div className="flex justify-between items-center pt-2 border-t border-border/50">
                   <div className="flex space-x-1 sm:space-x-2">
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
                       className="px-2.5 rounded-xl text-xs font-semibold hover:bg-muted text-muted-foreground hover:text-foreground"
                       onClick={() => imageInputRef.current?.click()}
-                      disabled={isPosting || !!imagePreview}
+                      disabled={isPosting || imageFiles.length >= 6}
                     >
                       <ImageIcon className="h-4 w-4 mr-1.5 text-primary" />
-                      <span>{t("photoVideo")}</span>
+                      <span>{t("photoVideo")}{imageFiles.length > 0 ? ` (${imageFiles.length})` : ""}</span>
                     </Button>
 
                     <Button
@@ -404,7 +432,7 @@ export default function NewsFeedPage() {
 
                   <Button
                     onClick={handlePostSubmit}
-                    disabled={isPosting || (!postContent.trim() && !imageFile && !voiceBlob) || !currentUser}
+                    disabled={isPosting || (!postContent.trim() && imageFiles.length === 0 && !voiceBlob) || !currentUser}
                     className="rounded-xl px-5 font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow"
                   >
                     {isPosting ? (

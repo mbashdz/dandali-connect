@@ -39,7 +39,7 @@ export default function MainAppLayout({ children }: PropsWithChildren) {
       <footer className="py-6 md:px-8 bg-background border-t">
         <div className="container max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
           <p className="text-center md:text-left">
-            &copy; {new Date().getFullYear()} Dandali Connect Africa &middot; Dandalin Sada Zumuntar Afirka. All rights reserved.
+            &copy; {new Date().getFullYear()} Zaure Connect Africa &middot; Dandalin Sada Zumuntar Afirka. All rights reserved.
           </p>
           <div className="flex items-center gap-4 font-semibold">
             <a href="/terms" className="hover:text-primary transition-colors">Sharuddan Aiki (Terms)</a>

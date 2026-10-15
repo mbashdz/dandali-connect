@@ -31,6 +31,7 @@ interface CreatePostData {
   authorName: string;
   authorAvatarUrl: string;
   imageUrl?: string;
+  imageUrls?: string[];
   videoUrl?: string;
   voiceNoteUrl?: string;
 }
@@ -77,8 +78,12 @@ export const createPost = async (postData: CreatePostData): Promise<string> => {
       timestamp: serverTimestamp(),
     };
 
-    if (postData.imageUrl) {
+    if (postData.imageUrls && postData.imageUrls.length > 0) {
+      postPayload.imageUrls = postData.imageUrls;
+      postPayload.imageUrl = postData.imageUrls[0];
+    } else if (postData.imageUrl) {
       postPayload.imageUrl = postData.imageUrl;
+      postPayload.imageUrls = [postData.imageUrl];
     }
     if (postData.videoUrl) {
       postPayload.videoUrl = postData.videoUrl;

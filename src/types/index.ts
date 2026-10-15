@@ -37,6 +37,7 @@ export interface Post {
   authorAvatarUrl: string; // Denormalized
   content: string;
   imageUrl?: string;
+  imageUrls?: string[];
   videoUrl?: string;
   voiceNoteUrl?: string;
   voiceDuration?: number; // Duration in seconds

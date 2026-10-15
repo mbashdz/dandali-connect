@@ -1,7 +1,7 @@
 // src/app/login/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { signIn, resetPassword } from '@/lib/firebase/auth';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { DandaliLogo } from '@/components/icons/dandali-logo';
+import { ZaureLogo } from '@/components/icons/dandali-logo';
 import { Sparkles, ShieldCheck, Heart, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -20,6 +21,13 @@ export default function LoginPage() {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { currentUser, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && currentUser) {
+      router.replace('/');
+    }
+  }, [currentUser, authLoading, router]);
 
   const handleForgotPassword = async () => {
     if (!email.trim()) {
@@ -53,8 +61,8 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signIn(email, password);
-      toast({ title: "Barka da dawowa!", description: "Welcome back to Dandali Connect." });
-      router.push('/');
+      toast({ title: "Barka da dawowa!", description: "Welcome back to Zaure Connect." });
+      router.replace('/');
     } catch (error: any) {
       console.error('Login failed:', error);
       toast({
@@ -77,7 +85,7 @@ export default function LoginPage() {
         
         <CardHeader className="space-y-2 text-center pb-4 pt-6">
           <div className="flex justify-center mb-2">
-            <DandaliLogo size="lg" />
+            <ZaureLogo size="lg" />
           </div>
           <CardTitle className="text-2xl font-black tracking-tight text-foreground">
             Barka da Dawowa!
@@ -165,7 +173,7 @@ export default function LoginPage() {
                 const { signInWithGoogle } = await import('@/lib/firebase/auth');
                 await signInWithGoogle();
                 toast({ title: "Barka da zuwa!", description: "Signed in with Google successfully." });
-                router.push('/');
+                router.replace('/');
               } catch (err: any) {
                 console.error("Google login failed:", err);
                 toast({

@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.dandali.connect',
-  appName: 'Dandali Connect',
+  appId: 'com.zaure.connect',
+  appName: 'Zaure Connect',
   webDir: 'public',
   server: {
     url: 'https://dandali-connect-gu5z.vercel.app',

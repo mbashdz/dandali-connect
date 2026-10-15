@@ -16,13 +16,17 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Dandali Connect • African Social Network',
+  title: 'Zaure Connect • African Social Network',
   description: 'Connecting communities across Africa with culturally rich social networking, voice posts, moments, and local marketplace.',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.png',
+    apple: '/icon-192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Dandali',
+    title: 'Zaure Connect',
   },
 };
 

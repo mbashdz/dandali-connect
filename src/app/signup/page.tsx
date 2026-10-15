@@ -1,7 +1,7 @@
 // src/app/signup/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { signUp } from '@/lib/firebase/auth';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { DandaliLogo } from '@/components/icons/dandali-logo';
+import { ZaureLogo } from '@/components/icons/dandali-logo';
 import { Sparkles, Users, Store, Heart } from 'lucide-react';
 
 export default function SignupPage() {
@@ -20,14 +21,21 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { currentUser, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && currentUser) {
+      router.replace('/');
+    }
+  }, [currentUser, authLoading, router]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
     try {
       await signUp(email, password, name);
-      toast({ title: "Barka da zuwa Dandali!", description: "Welcome to Dandali Connect!" });
-      router.push('/');
+      toast({ title: "Barka da zuwa Zaure Connect!", description: "Welcome to Zaure Connect!" });
+      router.replace('/');
     } catch (error: any) {
       console.error('Signup failed:', error);
       toast({
@@ -50,7 +58,7 @@ export default function SignupPage() {
 
         <CardHeader className="space-y-2 text-center pb-4 pt-6">
           <div className="flex justify-center mb-2">
-            <DandaliLogo size="lg" />
+            <ZaureLogo size="lg" />
           </div>
           <CardTitle className="text-2xl font-black tracking-tight text-foreground">
             Bude Sabon Asusu
@@ -143,7 +151,7 @@ export default function SignupPage() {
                 const { signInWithGoogle } = await import('@/lib/firebase/auth');
                 await signInWithGoogle();
                 toast({ title: "Barka da zuwa!", description: "Signed in with Google successfully." });
-                router.push('/');
+                router.replace('/');
               } catch (err: any) {
                 console.error("Google sign-up failed:", err);
                 toast({
