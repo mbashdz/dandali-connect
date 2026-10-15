@@ -17,7 +17,12 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
     { href: "/", label: t("home"), icon: Home },
     { href: "/explore", label: t("explore"), icon: Compass },
     { href: "/kasuwa", label: t("kasuwa"), icon: Store, badge: "New" },
-    { href: "/messages", label: language === "ha" ? "Sakonni" : "Messages", icon: MessageSquare },
+    {
+      href: "/messages",
+      label: language === "ha" ? "Sakonni" : "Messages",
+      icon: MessageSquare,
+      desktopOnly: true,
+    },
   ];
 
   return (
@@ -34,6 +39,7 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
             asChild
             className={cn(
               "text-xs sm:text-sm font-bold transition-all rounded-xl relative py-1 px-2.5 sm:px-3",
+              item.desktopOnly ? "hidden md:inline-flex" : "flex",
               isActive 
                 ? "bg-primary/10 text-primary hover:bg-primary/15 shadow-sm" 
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
@@ -52,7 +58,7 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
         );
       })}
 
-      {/* Mobile-only Menu tab (Facebook style: Home, Watch/Explore, Marketplace, Messages, Menu) */}
+      {/* Mobile-only Menu tab */}
       <div className="md:hidden">
         <MobileMenuDrawer />
       </div>
