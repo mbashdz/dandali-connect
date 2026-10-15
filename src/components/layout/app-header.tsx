@@ -88,52 +88,6 @@ export function AppHeader() {
             <DarkModeToggle />
           </div>
 
-          {/* Mobile Quick Menu Dropdown (Consolidates items so mobile fits screen cleanly) */}
-          <div className="sm:hidden">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52 rounded-2xl p-1.5 shadow-xl border border-border">
-                <DropdownMenuLabel className="text-xs font-bold text-muted-foreground px-2 py-1">
-                  Dandali Menu
-                </DropdownMenuLabel>
-                
-                <DropdownMenuItem onClick={toggleLanguage} className="rounded-xl text-xs font-bold cursor-pointer gap-2.5">
-                  <Globe className="w-4 h-4 text-primary" />
-                  <span>{language === "en" ? "Yaren Hausa (HA)" : "English (EN)"}</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem onClick={toggleDataSaver} className="rounded-xl text-xs font-bold cursor-pointer gap-2.5">
-                  {dataSaver ? <WifiOff className="w-4 h-4 text-secondary" /> : <Wifi className="w-4 h-4 text-muted-foreground" />}
-                  <span>{dataSaver ? "Data-Saver: Kunne (On)" : "Data-Saver: Kashe (Off)"}</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem asChild className="rounded-xl text-xs font-semibold cursor-pointer gap-2.5">
-                  <Link href="/terms">
-                    <Shield className="w-4 h-4 text-muted-foreground" />
-                    <span>Sharuddan Aiki (Terms)</span>
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem asChild className="rounded-xl text-xs font-semibold cursor-pointer gap-2.5">
-                  <Link href="/privacy">
-                    <Shield className="w-4 h-4 text-muted-foreground" />
-                    <span>Sirri da Tsaro (Privacy)</span>
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
           {/* In-App Notifications Bell */}
           <NotificationsPopover />
 
