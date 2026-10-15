@@ -21,6 +21,7 @@ import {
   startAfter,
   type DocumentSnapshot
 } from 'firebase/firestore';
+import { createNotification } from './notifications';
 import type { Post, Comment as CommentType } from '@/types';
 
 interface CreatePostData {
@@ -98,6 +99,26 @@ export const createPost = async (postData: CreatePostData): Promise<string> => {
       postsCount: increment(1)
     });
     console.log("[createPost] Successfully incremented postsCount for user:", postData.authorUid);
+
+    // Notify author's followers asynchronously
+    (async () => {
+      try {
+        const followersSnap = await getDocs(collection(db, 'users', postData.authorUid, 'followers'));
+        followersSnap.forEach((followerDoc) => {
+          const followerUid = followerDoc.id;
+          if (followerUid && followerUid !== postData.authorUid) {
+            createNotification(
+              followerUid,
+              'like', // badge icon
+              `@${postData.authorUsername} ya wallafa sabon sako (posted a new update)`,
+              `/${postData.authorUsername}`
+            ).catch(() => {});
+          }
+        });
+      } catch (err) {
+        console.warn("[createPost] Followers notification warning:", err);
+      }
+    })();
 
     return postRef.id;
   } catch (error: any) { // This is line 64 in your original file structure

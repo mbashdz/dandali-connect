@@ -23,14 +23,35 @@ export default function MessagesInboxPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
-    if (!currentUser?.uid) return;
-    setIsLoading(true);
-    const unsubscribe = subscribeToConversations(currentUser.uid, (convos) => {
-      setConversations(convos);
+    if (authLoading) return;
+    if (!currentUser?.uid) {
       setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, [currentUser?.uid]);
+      return;
+    }
+    setIsLoading(true);
+    const unsubscribe = subscribeToConversations(
+      currentUser.uid,
+      (convos) => {
+        setConversations(convos);
+        setIsLoading(false);
+      },
+      (err) => {
+        console.error("[MessagesPage] Subscription failed:", err);
+        setConversations([]);
+        setIsLoading(false);
+      }
+    );
+
+    // Timeout safety fallback (max 5s)
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 5000);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timer);
+    };
+  }, [currentUser?.uid, authLoading]);
 
   const filteredConversations = conversations.filter((convo) => {
     const otherUid = convo.participants.find((id: string) => id !== currentUser?.uid);

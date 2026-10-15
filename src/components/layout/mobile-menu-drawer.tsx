@@ -27,6 +27,7 @@ import {
   Bookmark,
   Bell,
   Search,
+  X,
 } from "lucide-react";
 import {
   Sheet,
@@ -135,12 +136,22 @@ export function MobileMenuDrawer() {
         side="right"
         className="w-full sm:max-w-md p-0 flex flex-col bg-background border-l border-border/80 overflow-y-auto"
       >
-        <SheetHeader className="p-4 pb-2 border-b border-border/60 flex flex-row items-center justify-between space-y-0 sticky top-0 bg-background/95 backdrop-blur-md z-10">
+        <SheetHeader className="p-4 pb-3 border-b border-border/70 flex flex-row items-center justify-between space-y-0 sticky top-0 bg-background/95 backdrop-blur-md z-20">
           <SheetTitle className="text-base font-black flex items-center gap-2">
             <span>Menu</span>
           </SheetTitle>
-          <div className="flex items-center gap-2 pr-6">
+          <div className="flex items-center gap-2">
             <DarkModeToggle />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setOpen(false)}
+              className="rounded-full h-8 px-3 border-border/80 bg-muted/60 hover:bg-muted text-xs font-bold gap-1"
+              aria-label="Close menu"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>{language === "ha" ? "Rufe" : "Close"}</span>
+            </Button>
           </div>
         </SheetHeader>
 

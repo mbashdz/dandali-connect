@@ -15,6 +15,7 @@ import {
   Timestamp,
   onSnapshot
 } from 'firebase/firestore';
+import { createNotification } from './notifications';
 import type { DirectMessage, Conversation, User } from '@/types';
 
 export const getConversationId = (uid1: string, uid2: string): string => {
@@ -69,18 +70,30 @@ export const sendDirectMessage = async (
     read: false,
   });
 
+  // 3. Send in-app notification to recipient
+  try {
+    await createNotification(
+      recipient.uid,
+      'message',
+      `Ya aiko maka da sabon sako: "${text.trim().slice(0, 45)}${text.trim().length > 45 ? '...' : ''}"`,
+      '/messages'
+    );
+  } catch (notifErr) {
+    console.warn("[sendDirectMessage] Notification dispatch warning:", notifErr);
+  }
+
   return messageDoc.id;
 };
 
 export const subscribeToConversations = (
   userId: string,
-  onUpdate: (conversations: Conversation[]) => void
+  onUpdate: (conversations: Conversation[]) => void,
+  onError?: (error: any) => void
 ) => {
+  // Query conversations with where clause; sort client-side to prevent composite index blocks
   const convQuery = query(
     collection(db, 'conversations'),
-    where('participants', 'array-contains', userId),
-    orderBy('updatedAt', 'desc'),
-    limit(30)
+    where('participants', 'array-contains', userId)
   );
 
   return onSnapshot(convQuery, (snapshot) => {
@@ -96,9 +109,14 @@ export const subscribeToConversations = (
         updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : new Date().toISOString(),
       });
     });
+
+    // Client-side sort by most recently updated
+    convos.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     onUpdate(convos);
   }, (err) => {
     console.error("[subscribeToConversations] Error:", err);
+    if (onError) onError(err);
+    else onUpdate([]);
   });
 };
 

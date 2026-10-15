@@ -15,6 +15,7 @@ import {
   increment,
   serverTimestamp 
 } from 'firebase/firestore';
+import { createNotification } from './notifications';
 import type { User } from '@/types';
 
 export const updateUserProfile = async (uid: string, data: Partial<User>): Promise<void> => {
@@ -167,6 +168,18 @@ export const followUser = async (
     });
   } catch (err) {
     console.warn("[followUser] Counter increment warning:", err);
+  }
+
+  // 3. Send in-app notification to the followed user
+  try {
+    await createNotification(
+      targetUid,
+      'follow',
+      `${follower.name} ya fara bin ka a Dandali (started following you)`,
+      `/${follower.username || follower.uid}`
+    );
+  } catch (notifErr) {
+    console.warn("[followUser] Follow notification dispatch warning:", notifErr);
   }
 };
 
