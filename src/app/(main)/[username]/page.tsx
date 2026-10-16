@@ -1,4 +1,3 @@
-
 // src/app/(main)/[username]/page.tsx
 'use client';
 
@@ -6,15 +5,16 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { ProfileHeader } from "@/components/profile-header";
 import { PostCard } from "@/components/post-card";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 import type { User, Post as PostType } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { EditProfileForm } from '@/components/edit-profile-form';
 import { useAuth } from '@/contexts/auth-context';
-import { updateUserProfile, getUserProfileByUsername } from '@/lib/firebase/users'; 
-import { getUserPosts } from '@/lib/firebase/posts';
+import { updateUserProfile, getUserProfileByUsername, checkIsFollowing } from '@/lib/firebase/users'; 
+import { getUserPosts, getGlobalPosts } from '@/lib/firebase/posts';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Heart } from 'lucide-react';
 
 export default function UserProfilePage() {
   const params = useParams();
@@ -24,14 +24,18 @@ export default function UserProfilePage() {
   
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [userPosts, setUserPosts] = useState<PostType[]>([]);
+  const [likedPosts, setLikedPosts] = useState<PostType[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
+  // Lightbox for media gallery
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
   const fetchUserProfileAndPosts = useCallback(async () => {
     if (!usernameFromUrl) return;
-    console.log(`[UserProfilePage] Fetching profile for username: ${usernameFromUrl}`);
     setLoadingProfile(true);
     setLoadingPosts(true);
 
@@ -39,77 +43,93 @@ export default function UserProfilePage() {
       const userData = await getUserProfileByUsername(usernameFromUrl);
 
       if (userData) {
-        console.log(`[UserProfilePage] User data found for ${usernameFromUrl}:`, userData);
+        let isFollowed = false;
+        if (authUser?.uid && userData.uid && authUser.uid !== userData.uid) {
+          isFollowed = await checkIsFollowing(authUser.uid, userData.uid);
+        }
+
         setProfileUser({
           ...userData,
           isCurrentUser: authUser?.uid === userData.uid,
-          isFollowedByCurrentUser: authUser ? Math.random() > 0.5 : false // Mock, replace with actual follow logic
+          isFollowedByCurrentUser: isFollowed,
         });
 
         if (userData.uid) {
-          console.log(`[UserProfilePage] Fetching posts for user UID: ${userData.uid}`);
-          const posts = await getUserPosts(userData.uid);
+          const [posts, globalResult] = await Promise.all([
+            getUserPosts(userData.uid),
+            getGlobalPosts(50),
+          ]);
           setUserPosts(posts);
-          console.log(`[UserProfilePage] Posts fetched for ${usernameFromUrl}:`, posts.length);
+
+          // Filter posts liked or reacted to by this profile user
+          const userLiked = globalResult.posts.filter(
+            (p) =>
+              p.likedBy?.includes(userData.uid) ||
+              (p.reactions && !!p.reactions[userData.uid])
+          );
+          setLikedPosts(userLiked);
         }
       } else {
-        console.log(`[UserProfilePage] No user found for username: ${usernameFromUrl}`);
         setProfileUser(null);
         setUserPosts([]);
+        setLikedPosts([]);
       }
     } catch (error: any) {
       console.error("[UserProfilePage] Error fetching user profile or posts:", error.message, error.code, error);
-      toast({ variant: "destructive", title: "Error", description: "Could not load profile or posts. Check console." });
+      toast({ variant: "destructive", title: "Error", description: "Could not load profile or posts." });
       setProfileUser(null);
       setUserPosts([]);
     } finally {
       setLoadingProfile(false);
       setLoadingPosts(false);
-      console.log(`[UserProfilePage] Finished fetching profile and posts for ${usernameFromUrl}. LoadingProfile: false, LoadingPosts: false.`);
     }
   }, [usernameFromUrl, authUser, toast]);
 
   useEffect(() => {
-    console.log("[UserProfilePage] Auth loading state:", authLoading, "Auth user UID:", authUser?.uid);
     if (!authLoading) { 
       fetchUserProfileAndPosts();
     }
   }, [authLoading, authUser, fetchUserProfileAndPosts]);
 
-
   const handleOpenEditDialog = () => setIsEditingProfile(true);
   const handleCloseEditDialog = () => setIsEditingProfile(false);
 
   const handleSaveProfile = async (data: Partial<User>) => {
-    console.log("[UserProfilePage] handleSaveProfile called. Data to save:", data);
-    console.log("[UserProfilePage] Current authUser state before saving profile:", authUser);
-
     if (!profileUser || !authUser || profileUser.uid !== authUser.uid) {
-      console.warn("[UserProfilePage] Save profile aborted: conditions not met.", { profileUserUid: profileUser?.uid, authUserUid: authUser?.uid });
-      toast({ variant: "destructive", title: "Error", description: "Cannot save profile. You might not be authorized or data is missing." });
+      toast({ variant: "destructive", title: "Error", description: "Cannot save profile. You might not be authorized." });
       return;
     }
-    console.log("[UserProfilePage] Saving profile for user UID:", authUser.uid);
     setIsSavingProfile(true);
     try {
       await updateUserProfile(authUser.uid, data);
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
-      console.log("[UserProfilePage] Profile saved successfully. Re-fetching profile...");
       await fetchUserProfileAndPosts(); 
       setIsEditingProfile(false);
-      console.log("[UserProfilePage] Profile re-fetched successfully.");
     } catch (error: any) {
       console.error("[UserProfilePage] Error updating profile:", error.message, error.code, error);
-      toast({ variant: "destructive", title: "Update Failed", description: "Could not update your profile. Check console for details." });
+      toast({ variant: "destructive", title: "Update Failed", description: "Could not update your profile." });
     } finally {
       setIsSavingProfile(false);
-      console.log("[UserProfilePage] handleSaveProfile finished. isSavingProfile:", false);
     }
   };
 
-  const handlePostUpdateInList = (updatedPost: PostType) => {
-    setUserPosts(prevPosts => prevPosts.map(p => p.id === updatedPost.id ? updatedPost : p));
+  const handlePostUpdateInList = (updatedPost: PostType & { _deleted?: boolean }) => {
+    if (updatedPost._deleted) {
+      setUserPosts((prevPosts) => prevPosts.filter((p) => p.id !== updatedPost.id));
+      setLikedPosts((prevPosts) => prevPosts.filter((p) => p.id !== updatedPost.id));
+    } else {
+      setUserPosts((prevPosts) => prevPosts.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+      setLikedPosts((prevPosts) => prevPosts.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+    }
   };
+
+  // Extract all photos from user's posts for the Media gallery
+  const mediaPosts = userPosts.filter(
+    (p) => (p.imageUrls && p.imageUrls.length > 0) || !!p.imageUrl || !!p.voiceNoteUrl
+  );
+  const allUserPhotos: string[] = userPosts.flatMap((p) =>
+    p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : p.imageUrl ? [p.imageUrl] : []
+  );
 
   if (authLoading || loadingProfile) {
     return (
@@ -136,39 +156,104 @@ export default function UserProfilePage() {
       />
       
       <Tabs defaultValue="posts" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-4">
-          <TabsTrigger value="posts">Posts ({profileUser.postsCount || userPosts.length || 0})</TabsTrigger>
-          <TabsTrigger value="media">Media</TabsTrigger>
-          <TabsTrigger value="likes">Likes</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 mb-4 rounded-2xl">
+          <TabsTrigger value="posts" className="rounded-xl">
+            Posts ({userPosts.length})
+          </TabsTrigger>
+          <TabsTrigger value="media" className="rounded-xl">
+            Media ({mediaPosts.length})
+          </TabsTrigger>
+          <TabsTrigger value="likes" className="rounded-xl">
+            Likes ({likedPosts.length})
+          </TabsTrigger>
         </TabsList>
+
         <TabsContent value="posts">
-            {loadingPosts ? (
-               <div className="flex justify-center items-center py-10">
-                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-               </div>
-            ) : userPosts.length > 0 ? (
-              <div className="space-y-6">
-                {userPosts.map((post) => (
-                  <PostCard key={post.id} post={post} onPostUpdate={handlePostUpdateInList} />
+          {loadingPosts ? (
+            <div className="flex justify-center items-center py-10">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : userPosts.length > 0 ? (
+            <div className="space-y-6">
+              {userPosts.map((post) => (
+                <PostCard key={post.id} post={post} onPostUpdate={handlePostUpdateInList} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-card rounded-2xl border border-dashed">
+              <p className="text-muted-foreground text-sm">@{profileUser.username} hasn&apos;t posted anything yet.</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="media">
+          {allUserPhotos.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-primary" /> Photo Gallery ({allUserPhotos.length})
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {allUserPhotos.map((photoUrl, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      setLightboxIndex(idx);
+                      setLightboxOpen(true);
+                    }}
+                    className="relative aspect-square rounded-2xl overflow-hidden border border-border/70 bg-muted cursor-pointer group"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photoUrl}
+                      alt={`${profileUser.name} media ${idx + 1}`}
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
                 ))}
               </div>
-            ) : (
-              <div className="text-center py-10">
-                <p className="text-muted-foreground">@{profileUser.username} hasn&apos;t posted anything yet.</p>
-              </div>
-            )}
+            </div>
+          )}
+
+          {mediaPosts.length > 0 ? (
+            <div className="space-y-6">
+              {mediaPosts.map((post) => (
+                <PostCard key={post.id} post={post} onPostUpdate={handlePostUpdateInList} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-card rounded-2xl border border-dashed">
+              <ImageIcon className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-muted-foreground text-sm">No photos or voice notes shared by @{profileUser.username} yet.</p>
+            </div>
+          )}
         </TabsContent>
-        <TabsContent value="media">
-          <div className="text-center py-10">
-            <p className="text-muted-foreground">Media content will appear here.</p>
-          </div>
-        </TabsContent>
+
         <TabsContent value="likes">
-          <div className="text-center py-10">
-            <p className="text-muted-foreground">Posts liked by @{profileUser.username} will appear here.</p>
-          </div>
+          {likedPosts.length > 0 ? (
+            <div className="space-y-6">
+              {likedPosts.map((post) => (
+                <PostCard key={post.id} post={post} onPostUpdate={handlePostUpdateInList} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-card rounded-2xl border border-dashed">
+              <Heart className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-muted-foreground text-sm">Posts reacted to by @{profileUser.username} will appear here.</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
+
+      {allUserPhotos.length > 0 && (
+        <ImageLightbox
+          isOpen={lightboxOpen}
+          images={allUserPhotos}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxOpen(false)}
+          title={`${profileUser.name}'s media`}
+        />
+      )}
 
       {profileUser.isCurrentUser && (
         <Dialog open={isEditingProfile} onOpenChange={setIsEditingProfile}>

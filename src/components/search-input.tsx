@@ -65,7 +65,7 @@ export function SearchInput() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search Dandali Connect..."
+            placeholder="Search Zaure Connect..."
             value={searchTerm}
             onChange={handleInputChange}
             onFocus={() => debouncedSearchTerm.length > 2 && setShowSuggestions(true)}

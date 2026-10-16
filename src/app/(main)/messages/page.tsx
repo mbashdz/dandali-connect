@@ -103,7 +103,7 @@ export default function MessagesInboxPage() {
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">
           {language === "ha"
-            ? "Tattaunawa ta sirri tsakaninka da sauran 'yan uwa a Dandali."
+            ? "Tattaunawa ta sirri tsakaninka da sauran 'yan uwa a Zaure Connect."
             : "Private conversations and instant direct messages with your community."}
         </p>
       </div>

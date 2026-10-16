@@ -39,7 +39,7 @@ export const createNotification = async (
   await addDoc(notifRef, {
     recipientUid,
     senderUid: currentUser.uid,
-    senderName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Dandali User',
+    senderName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Zaure User',
     senderAvatarUrl: currentUser.photoURL || 'https://placehold.co/100x100.png',
     type,
     title,

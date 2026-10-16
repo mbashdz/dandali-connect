@@ -278,7 +278,7 @@ export function StoriesCarousel() {
       <Dialog open={isCreatingStory} onOpenChange={setIsCreatingStory}>
         <DialogContent className="max-w-md rounded-3xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Create a Dandali Moment</DialogTitle>
+            <DialogTitle className="text-lg font-bold">Create a Zaure Moment</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 pt-2">

@@ -15,7 +15,7 @@ const translations: Translations = {
   // Navigation & Branding
   brandTagline: {
     en: "African Social Network",
-    ha: "Dandalin Sada Zumuntar Afirka",
+    ha: "Zauren Sada Zumuntar Afirka",
   },
   home: { en: "Home", ha: "Gida" },
   explore: { en: "Explore", ha: "Bincike" },
@@ -25,10 +25,10 @@ const translations: Translations = {
   settings: { en: "Settings", ha: "Saituna" },
   logout: { en: "Log Out", ha: "Fita" },
   login: { en: "Log In", ha: "Shiga" },
-  signup: { en: "Join Dandali", ha: "Yi Rajista" },
+  signup: { en: "Join Zaure", ha: "Yi Rajista" },
   
   // Feed & Composer
-  createPost: { en: "Share on Dandali", ha: "Me ke faruwa?" },
+  createPost: { en: "Share on Zaure", ha: "Me ke faruwa?" },
   postPlaceholder: {
     en: "What's happening in your community today?",
     ha: "Mene ne sabo a garinku yau?",
@@ -43,7 +43,7 @@ const translations: Translations = {
   },
 
   // Stories / Moments
-  storiesTitle: { en: "Dandali Moments", ha: "Kowane Lokaci" },
+  storiesTitle: { en: "Zaure Moments", ha: "Kowane Lokaci" },
   addStory: { en: "Your Moment", ha: "Lokacinka" },
 
   // Cultural Reactions
@@ -57,7 +57,7 @@ const translations: Translations = {
   writeComment: { en: "Write a comment...", ha: "Rubuta ra'ayinka..." },
 
   // Marketplace
-  kasuwaTitle: { en: "Dandali Kasuwa", ha: "Kasuwar Dandali" },
+  kasuwaTitle: { en: "Zaure Kasuwa", ha: "Kasuwar Zaure" },
   kasuwaSubtitle: {
     en: "Buy, sell, and trade safely with local community members across Africa.",
     ha: "Saya, sayar, da ciniki cikin aminci da mutanen garinku a fadin Afirka.",
@@ -73,8 +73,8 @@ const translations: Translations = {
 
   // Search
   searchPlaceholder: {
-    en: "Search Dandali for people, posts, or kasuwa items...",
-    ha: "Nemo mutane, labarai, ko kayan kasuwa a Dandali...",
+    en: "Search Zaure for people, posts, or kasuwa items...",
+    ha: "Nemo mutane, labarai, ko kayan kasuwa a Zaure...",
   },
 };
 

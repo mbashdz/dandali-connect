@@ -33,7 +33,7 @@ export const sendDirectMessage = async (
   const conversationId = getConversationId(currentUser.uid, recipient.uid);
   const conversationRef = doc(db, 'conversations', conversationId);
 
-  const senderName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Dandali User';
+  const senderName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Zaure User';
   const senderAvatar = currentUser.photoURL || 'https://placehold.co/100x100.png';
 
   // 1. Update or create the parent conversation document

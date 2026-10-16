@@ -44,8 +44,11 @@ interface EditProfileFormProps {
 export const EditProfileForm: FC<EditProfileFormProps> = ({ user, onSave, onCancel, isSaving }) => {
   const { toast } = useToast();
   const [currentAvatar, setCurrentAvatar] = useState(user.avatarUrl || '');
+  const [currentCover, setCurrentCover] = useState(user.coverPhotoUrl || '');
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
+  const coverFileRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -67,7 +70,7 @@ export const EditProfileForm: FC<EditProfileFormProps> = ({ user, onSave, onCanc
         const url = await uploadFile(file, `avatars/${user.uid}`);
         setCurrentAvatar(url);
         form.setValue('avatarUrl', url);
-        toast({ title: 'Photo Uploaded', description: 'Photo attached. Click Save Changes to confirm.' });
+        toast({ title: 'Photo Uploaded', description: 'Profile photo attached. Click Save Changes to confirm.' });
       } catch (err: any) {
         toast({ variant: 'destructive', title: 'Upload Failed', description: err.message });
       } finally {
@@ -76,41 +79,82 @@ export const EditProfileForm: FC<EditProfileFormProps> = ({ user, onSave, onCanc
     }
   };
 
+  const handleCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0] && user.uid) {
+      const file = e.target.files[0];
+      setIsUploadingCover(true);
+      try {
+        const url = await uploadFile(file, `covers/${user.uid}`);
+        setCurrentCover(url);
+        form.setValue('coverPhotoUrl', url);
+        toast({ title: 'Cover Uploaded', description: 'Cover banner attached. Click Save Changes to confirm.' });
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Upload Failed', description: err.message });
+      } finally {
+        setIsUploadingCover(false);
+      }
+    }
+  };
+
   const onSubmit = async (data: ProfileFormValues) => {
-    await onSave({ ...data, avatarUrl: currentAvatar || data.avatarUrl });
+    await onSave({
+      ...data,
+      avatarUrl: currentAvatar || data.avatarUrl,
+      coverPhotoUrl: currentCover || data.coverPhotoUrl,
+    });
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {/* Avatar Upload Preview */}
-        <div className="flex items-center gap-4 p-3 rounded-2xl bg-muted/40 border">
-          <Avatar className="w-16 h-16 border-2 border-primary/50">
-            <AvatarImage src={currentAvatar} alt={user.name} />
-            <AvatarFallback className="font-bold bg-primary/10 text-primary">
-              {user.name?.slice(0, 2).toUpperCase() || 'DC'}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isUploadingPhoto || isSaving}
-              onClick={() => avatarFileRef.current?.click()}
-              className="rounded-xl text-xs font-bold gap-1.5"
-            >
-              {isUploadingPhoto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-              Upload Profile Photo
-            </Button>
-            <input
-              type="file"
-              ref={avatarFileRef}
-              onChange={handleAvatarFile}
-              accept="image/*"
-              className="hidden"
-            />
+        {/* Avatar & Cover Upload Preview */}
+        <div className="flex flex-wrap items-center justify-between gap-4 p-3 rounded-2xl bg-muted/40 border">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-16 h-16 border-2 border-primary/50">
+              <AvatarImage src={currentAvatar} alt={user.name} />
+              <AvatarFallback className="font-bold bg-primary/10 text-primary">
+                {user.name?.slice(0, 2).toUpperCase() || 'ZC'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isUploadingPhoto || isUploadingCover || isSaving}
+                onClick={() => avatarFileRef.current?.click()}
+                className="rounded-xl text-xs font-bold gap-1.5 h-8"
+              >
+                {isUploadingPhoto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                Profile Photo
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isUploadingPhoto || isUploadingCover || isSaving}
+                onClick={() => coverFileRef.current?.click()}
+                className="rounded-xl text-xs font-bold gap-1.5 h-8"
+              >
+                {isUploadingCover ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                Cover Banner
+              </Button>
+            </div>
           </div>
+          <input
+            type="file"
+            ref={avatarFileRef}
+            onChange={handleAvatarFile}
+            accept="image/*"
+            className="hidden"
+          />
+          <input
+            type="file"
+            ref={coverFileRef}
+            onChange={handleCoverFile}
+            accept="image/*"
+            className="hidden"
+          />
         </div>
 
         <FormField
@@ -134,7 +178,7 @@ export const EditProfileForm: FC<EditProfileFormProps> = ({ user, onSave, onCanc
             <FormItem>
               <FormLabel className="text-xs font-bold">Bio</FormLabel>
               <FormControl>
-                <Textarea placeholder="Tell the Dandali community about yourself" className="resize-none rounded-xl" {...field} />
+                <Textarea placeholder="Tell the Zaure Connect community about yourself" className="resize-none rounded-xl" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

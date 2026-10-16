@@ -44,7 +44,7 @@ export const createUserProfileDocument = async (firebaseUser: FirebaseUser, addi
       name: additionalData?.name || username,
       avatarUrl: 'https://placehold.co/100x100.png',
       coverPhotoUrl: 'https://placehold.co/1000x300.png',
-      bio: 'Welcome to Dandali Connect!',
+      bio: 'Welcome to Zaure Connect!',
       location: '',
       website: '',
       followersCount: 0,
@@ -106,7 +106,7 @@ export const signInWithGoogle = async () => {
   }
 
   await createUserProfileDocument(user, {
-    name: user.displayName || user.email?.split('@')[0] || 'Dandali User',
+    name: user.displayName || user.email?.split('@')[0] || 'Zaure User',
     avatarUrl: user.photoURL || 'https://placehold.co/100x100.png',
   });
   return user;

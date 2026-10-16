@@ -64,7 +64,7 @@ export function ReportDialog({
       setSubmitted(true);
       toast({
         title: "Report Received",
-        description: "Thank you for keeping Dandali safe. Our community moderation team will review this promptly.",
+        description: "Thank you for keeping Zaure Connect safe. Our community moderation team will review this promptly.",
       });
       setTimeout(() => {
         setSubmitted(false);
@@ -91,7 +91,7 @@ export function ReportDialog({
             Report Content or Community Violation
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Help safeguard the Dandali community. Reports are strictly confidential.
+            Help safeguard the Zaure Connect community. Reports are strictly confidential.
           </DialogDescription>
         </DialogHeader>
 

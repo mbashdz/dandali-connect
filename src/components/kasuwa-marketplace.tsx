@@ -111,7 +111,7 @@ export function KasuwaMarketplace() {
         category,
         imageUrl,
         sellerUid: currentUser.uid,
-        sellerName: currentUser.name || "Dandali Merchant",
+        sellerName: currentUser.name || "Zaure Merchant",
         sellerPhone: phone || "+2348000000000",
         sellerWhatsapp: cleanWhatsapp || "2348000000000",
         sellerAvatarUrl: currentUser.avatarUrl || "https://placehold.co/100x100.png",
@@ -119,7 +119,7 @@ export function KasuwaMarketplace() {
 
       toast({
         title: "Item Listed Successfully!",
-        description: "Your product is now visible to buyers across Dandali Kasuwa.",
+        description: "Your product is now visible to buyers across Zaure Kasuwa.",
       });
 
       setTitle("");
@@ -292,7 +292,7 @@ export function KasuwaMarketplace() {
           <Store className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
           <h3 className="text-lg font-bold">Babu Kayan da aka samu (No items found)</h3>
           <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto mb-4">
-            Be the first to list products, crafts, or agricultural produce on Dandali Kasuwa!
+            Be the first to list products, crafts, or agricultural produce on Zaure Kasuwa!
           </p>
           <Button onClick={() => setIsListingModalOpen(true)} className="rounded-xl font-bold bg-primary text-primary-foreground">
             <PlusCircle className="w-4 h-4 mr-1.5" /> List an Item
@@ -360,7 +360,7 @@ export function KasuwaMarketplace() {
                     />
                     <div>
                       <p className="text-xs font-bold text-foreground">{selectedItem.sellerName}</p>
-                      <p className="text-[11px] text-muted-foreground">Verified Dandali Seller</p>
+                      <p className="text-[11px] text-muted-foreground">Verified Zaure Seller</p>
                     </div>
                   </div>
 
@@ -370,7 +370,7 @@ export function KasuwaMarketplace() {
                       className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl gap-2 shadow"
                     >
                       <a
-                        href={`https://wa.me/${selectedItem.sellerWhatsapp || '2348000000000'}?text=Salam,%20I%20saw%20your%20Dandali%20listing:%20${encodeURIComponent(selectedItem.title)}`}
+                        href={`https://wa.me/${selectedItem.sellerWhatsapp || '2348000000000'}?text=Salam,%20I%20saw%20your%20Zaure%20Connect%20listing:%20${encodeURIComponent(selectedItem.title)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >

@@ -113,8 +113,8 @@ export default function SettingsPage() {
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">
           {language === "ha"
-            ? "Gyara bayananka, hotonka, da abubuwan da ka fi so a Dandali."
-            : "Manage your profile, preferences, and data settings across Dandali Connect."}
+            ? "Gyara bayananka, hotonka, da abubuwan da ka fi so a Zaure Connect."
+            : "Manage your profile, preferences, and data settings across Zaure Connect."}
         </p>
       </div>
 
@@ -125,7 +125,7 @@ export default function SettingsPage() {
             {language === "ha" ? "Bayanin Bayanina (Profile Info)" : "Public Profile"}
           </CardTitle>
           <CardDescription className="text-xs">
-            This information will be displayed to your followers and on your public Dandali profile.
+            This information will be displayed to your followers and on your public Zaure Connect profile.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -333,7 +333,7 @@ export default function SettingsPage() {
             <div>
               <p className="text-xs font-bold text-foreground">Community Notifications</p>
               <p className="text-[11px] text-muted-foreground">
-                Receive notifications when people react to your posts or comment on Dandali.
+                Receive notifications when people react to your posts or comment on Zaure Connect.
               </p>
             </div>
             <Switch 

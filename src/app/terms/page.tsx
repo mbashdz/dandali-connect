@@ -1,12 +1,12 @@
 import React from "react";
 import Link from "next/link";
-import { DandaliLogo } from "@/components/icons/dandali-logo";
+import { ZaureLogo } from "@/components/icons/dandali-logo";
 import { ShieldCheck, ArrowLeft, Lock, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const metadata = {
-  title: "Terms of Service • Dandali Connect",
-  description: "Terms and conditions for Dandali Connect users across Africa.",
+  title: "Terms of Service • Zaure Connect",
+  description: "Terms and conditions for Zaure Connect users across Africa.",
 };
 
 export default function TermsPage() {
@@ -15,7 +15,7 @@ export default function TermsPage() {
       <div className="max-w-3xl mx-auto space-y-8">
         <div className="flex items-center justify-between pb-6 border-b border-border">
           <Link href="/" className="flex items-center gap-2">
-            <DandaliLogo size="md" />
+            <ZaureLogo size="md" />
           </Link>
           <Button asChild variant="ghost" size="sm" className="rounded-xl gap-1">
             <Link href="/">
@@ -29,10 +29,10 @@ export default function TermsPage() {
             <FileText className="w-4 h-4" /> Last Updated: October 2026
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-            Dandali Connect Terms of Service
+            Zaure Connect Terms of Service
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Maraba (Welcome) to Dandali Connect. By creating an account or using our platform, you agree to these Terms. Dandali Connect is built to celebrate and foster respectful, vibrant African communities.
+            Maraba (Welcome) to Zaure Connect. By creating an account or using our platform, you agree to these Terms. Zaure Connect is built to celebrate and foster respectful, vibrant African communities.
           </p>
         </div>
 
@@ -40,14 +40,14 @@ export default function TermsPage() {
           <section className="space-y-2">
             <h2 className="text-xl font-bold text-foreground">1. Eligibility and Accounts</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              You must be at least 13 years old to use Dandali Connect. You agree to provide accurate information and safeguard your login credentials. You are responsible for all actions conducted through your account.
+              You must be at least 13 years old to use Zaure Connect. You agree to provide accurate information and safeguard your login credentials. You are responsible for all actions conducted through your account.
             </p>
           </section>
 
           <section className="space-y-2">
             <h2 className="text-xl font-bold text-foreground">2. Community Standards & Cultural Respect</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Dandali Connect strictly prohibits:
+              Zaure Connect strictly prohibits:
             </p>
             <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
               <li>Tribal hate speech, ethnic discrimination, or religious vilification.</li>
@@ -58,9 +58,9 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-xl font-bold text-foreground">3. Dandali Kasuwa (Marketplace) Guidelines</h2>
+            <h2 className="text-xl font-bold text-foreground">3. Zaure Kasuwa (Marketplace) Guidelines</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Dandali Kasuwa connects buyers and sellers. Dandali does not take custody of funds, goods, or escrow. Users must:
+              Zaure Kasuwa connects buyers and sellers. Zaure Connect does not take custody of funds, goods, or escrow. Users must:
             </p>
             <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
               <li>Sell only legal, verified items with honest descriptions and pricing.</li>
@@ -72,7 +72,7 @@ export default function TermsPage() {
           <section className="space-y-2">
             <h2 className="text-xl font-bold text-foreground">4. Content Ownership and License</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              You retain all ownership of the text, photos, voice notes, and media you post. By posting, you grant Dandali Connect a non-exclusive license to host, display, and distribute your content across our platform services.
+              You retain all ownership of the text, photos, voice notes, and media you post. By posting, you grant Zaure Connect a non-exclusive license to host, display, and distribute your content across our platform services.
             </p>
           </section>
 
@@ -86,13 +86,13 @@ export default function TermsPage() {
           <section className="space-y-2">
             <h2 className="text-xl font-bold text-foreground">6. Contact Us</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              If you have inquiries regarding these terms, please contact our community support team at <strong className="text-foreground">support@dandaliconnect.com</strong>.
+              If you have inquiries regarding these terms, please contact our community support team at <strong className="text-foreground">support@zaureconnect.com</strong>.
             </p>
           </section>
         </div>
 
         <div className="pt-8 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Dandali Connect Africa. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Zaure Connect Africa. All rights reserved.</p>
           <Link href="/privacy" className="text-primary hover:underline font-semibold">
             Privacy Policy &rarr;
           </Link>

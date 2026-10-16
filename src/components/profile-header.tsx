@@ -55,7 +55,7 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
         await followUser(
           {
             uid: currentUser.uid,
-            name: currentUser.name || "Dandali Member",
+            name: currentUser.name || "Zaure Member",
             username: currentUser.username || "user",
             avatarUrl: currentUser.avatarUrl || "https://placehold.co/100x100.png",
           },

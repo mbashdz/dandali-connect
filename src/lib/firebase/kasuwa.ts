@@ -38,7 +38,7 @@ export const getKasuwaItems = async (categoryFilter?: string): Promise<KasuwaIte
         category: data.category || 'fashion',
         imageUrl: data.imageUrl || '',
         sellerUid: data.sellerUid || '',
-        sellerName: data.sellerName || 'Dandali Seller',
+        sellerName: data.sellerName || 'Zaure Seller',
         sellerPhone: data.sellerPhone || '',
         sellerWhatsapp: data.sellerWhatsapp || '',
         sellerAvatarUrl: data.sellerAvatarUrl || '',

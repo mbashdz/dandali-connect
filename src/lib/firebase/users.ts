@@ -175,7 +175,7 @@ export const followUser = async (
     await createNotification(
       targetUid,
       'follow',
-      `${follower.name} ya fara bin ka a Dandali (started following you)`,
+      `${follower.name} ya fara bin ka a Zaure Connect (started following you)`,
       `/${follower.username || follower.uid}`
     );
   } catch (notifErr) {

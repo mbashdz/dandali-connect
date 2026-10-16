@@ -64,7 +64,7 @@ export default function ExplorePage() {
           <Compass className="w-4 h-4" /> Discover Community
         </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-          Explore Dandali Connect
+          Explore Zaure Connect
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Find trending African conversations, connect with creators, and browse local discussions.
@@ -177,7 +177,7 @@ export default function ExplorePage() {
         </h2>
         <Card className="rounded-2xl border border-border/80 p-5 bg-card">
           <div className="flex flex-wrap gap-2.5">
-            {["#ArewaConnect", "#Kano", "#HausaCulture", "#KadunaTech", "#NaijaGist", "#DandaliCommunity", "#AfricanHeritage", "#Abuja"].map(tag => (
+            {["#ArewaConnect", "#Kano", "#HausaCulture", "#KadunaTech", "#NaijaGist", "#ZaureCommunity", "#AfricanHeritage", "#Abuja"].map(tag => (
               <Button key={tag} variant="outline" size="sm" asChild className="rounded-xl text-xs font-bold hover:bg-primary/10 hover:text-primary transition-colors">
                 <Link href={`/search?q=${encodeURIComponent(tag)}`}>{tag}</Link>
               </Button>

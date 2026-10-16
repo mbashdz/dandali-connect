@@ -1,12 +1,12 @@
 import React from "react";
 import Link from "next/link";
-import { DandaliLogo } from "@/components/icons/dandali-logo";
+import { ZaureLogo } from "@/components/icons/dandali-logo";
 import { ShieldCheck, ArrowLeft, Lock, Eye, Database, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const metadata = {
-  title: "Privacy Policy • Dandali Connect",
-  description: "Privacy policy and data protection for Dandali Connect users across Africa.",
+  title: "Privacy Policy • Zaure Connect",
+  description: "Privacy policy and data protection for Zaure Connect users across Africa.",
 };
 
 export default function PrivacyPage() {
@@ -15,7 +15,7 @@ export default function PrivacyPage() {
       <div className="max-w-3xl mx-auto space-y-8">
         <div className="flex items-center justify-between pb-6 border-b border-border">
           <Link href="/" className="flex items-center gap-2">
-            <DandaliLogo size="md" />
+            <ZaureLogo size="md" />
           </Link>
           <Button asChild variant="ghost" size="sm" className="rounded-xl gap-1">
             <Link href="/">
@@ -29,10 +29,10 @@ export default function PrivacyPage() {
             <Lock className="w-4 h-4" /> Data Protection & Privacy Standard
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-            Dandali Connect Privacy Policy
+            Zaure Connect Privacy Policy
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Your privacy and cultural trust are paramount to us. This Privacy Policy describes how Dandali Connect collects, uses, and protects your information when you access our web and mobile applications.
+            Your privacy and cultural trust are paramount to us. This Privacy Policy describes how Zaure Connect collects, uses, and protects your information when you access our web and mobile applications.
           </p>
         </div>
 
@@ -44,7 +44,7 @@ export default function PrivacyPage() {
             </p>
             <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
               <li><strong>Account Information:</strong> Name, username, email address, password hash, and optional profile data (bio, location, website).</li>
-              <li><strong>User Content:</strong> Posts, comments, uploaded photos, voice notes (recorded audio), 24-hour Dandali Moments, and Kasuwa marketplace listings.</li>
+              <li><strong>User Content:</strong> Posts, comments, uploaded photos, voice notes (recorded audio), 24-hour Zaure Moments, and Kasuwa marketplace listings.</li>
               <li><strong>Device & Usage Data:</strong> Basic browser type, language preference (English/Hausa), and data-saver preference to minimize mobile data consumption.</li>
             </ul>
           </section>
@@ -72,7 +72,7 @@ export default function PrivacyPage() {
           <section className="space-y-2">
             <h2 className="text-xl font-bold text-foreground">4. Voice Notes & Media Permissions</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Dandali Connect requests microphone access only when you actively tap the Record button to author an oral voice note. Audio recording stops immediately upon pressing Stop.
+              Zaure Connect requests microphone access only when you actively tap the Record button to author an oral voice note. Audio recording stops immediately upon pressing Stop.
             </p>
           </section>
 
@@ -86,13 +86,13 @@ export default function PrivacyPage() {
           <section className="space-y-2">
             <h2 className="text-xl font-bold text-foreground">6. Contact Our Privacy Officer</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              For any privacy questions or requests, please reach us at <strong className="text-foreground">privacy@dandaliconnect.com</strong>.
+              For any privacy questions or requests, please reach us at <strong className="text-foreground">privacy@zaureconnect.com</strong>.
             </p>
           </section>
         </div>
 
         <div className="pt-8 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Dandali Connect Africa. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Zaure Connect Africa. All rights reserved.</p>
           <Link href="/terms" className="text-primary hover:underline font-semibold">
             Terms of Service &rarr;
           </Link>

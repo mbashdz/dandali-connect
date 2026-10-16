@@ -1,102 +1,135 @@
 Add-Type -AssemblyName System.Drawing
 
-$srcPath = "e:\Dandali\public\images\zaure-logo.jpg"
-if (-not (Test-Path $srcPath)) {
-    Write-Error "Source image not found: $srcPath"
-    exit 1
+$sourcePath = "e:\Dandali\public\images\zaure-logo.jpg"
+$bmp = [System.Drawing.Bitmap]::FromFile($sourcePath)
+
+# 1. Find exact bounding box of the Emblem (left side of image, X < 420)
+$minX = $bmp.Width
+$minY = $bmp.Height
+$maxX = 0
+$maxY = 0
+
+# Background color is roughly RGB(30, 30, 30)
+$bgR = 30.0
+$bgG = 30.0
+$bgB = 30.0
+
+for ($y = 0; $y -lt $bmp.Height; $y++) {
+    for ($x = 0; $x -lt 420; $x++) {
+        $c = $bmp.GetPixel($x, $y)
+        $diff = [Math]::Max([Math]::Abs($c.R - $bgR), [Math]::Max([Math]::Abs($c.G - $bgG), [Math]::Abs($c.B - $bgB)))
+        if ($diff -gt 25) {
+            if ($x -lt $minX) { $minX = $x }
+            if ($x -gt $maxX) { $maxX = $x }
+            if ($y -lt $minY) { $minY = $y }
+            if ($y -gt $maxY) { $maxY = $y }
+        }
+    }
 }
 
-$srcBmp = [System.Drawing.Bitmap]::FromFile($srcPath)
-$origW = $srcBmp.Width
-$origH = $srcBmp.Height
-Write-Host "Original image dimensions: $origW x $origH"
+Write-Host "Detected Emblem Bounding Box: X=$minX..$maxX, Y=$minY..$maxY"
 
-# The logo has the 'Z' monogram on the left (approx from x: 0.05*W to 0.4*W, and y: 0.15*H to 0.85*H)
-# or we can create an app launcher icon with the Z monogram centered with appropriate padding,
-# and also full logo banner.
+# Add small padding around emblem
+$pad = 6
+$cropX = [Math]::Max(0, $minX - $pad)
+$cropY = [Math]::Max(0, $minY - $pad)
+$cropW = ($maxX - $minX + 1) + ($pad * 2)
+$cropH = ($maxY - $minY + 1) + ($pad * 2)
 
-# Let's crop the 'Z' monogram for square app icons:
-# Based on typical logo composition:
-# The monogram is on the left half:
-$cropSize = [Math]::Min($origH, [int]($origW * 0.45))
-$cropX = [int]($origW * 0.03)
-$cropY = [int](($origH - $cropSize) / 2)
+# 2. Create transparent emblem PNG by unmixing the #1E1E1E background
+$emblemBmp = New-Object System.Drawing.Bitmap($cropW, $cropH, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
 
-Write-Host "Cropping Z monogram: X=$cropX, Y=$cropY, Size=$cropSize"
-
-$cropRect = New-Object System.Drawing.Rectangle($cropX, $cropY, $cropSize, $cropSize)
-$zBmp = New-Object System.Drawing.Bitmap($cropSize, $cropSize)
-$gCrop = [System.Drawing.Graphics]::FromImage($zBmp)
-$gCrop.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-$gCrop.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-$gCrop.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-$gCrop.DrawImage($srcBmp, 0, 0, $cropRect, [System.Drawing.GraphicsUnit]::Pixel)
-$gCrop.Dispose()
-
-# Save the cropped Z emblem to public/images/zaure-icon.png
-$zBmp.Save("e:\Dandali\public\images\zaure-icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
-
-# Function to resize and save square launcher icon
-function Save-Icon($bmp, $size, $outPath, $isRound = $false) {
-    $parent = Split-Path -Parent $outPath
-    if (-not (Test-Path $parent)) {
-        New-Item -ItemType Directory -Force -Path $parent | Out-Null
+for ($y = 0; $y -lt $cropH; $y++) {
+    for ($x = 0; $x -lt $cropW; $x++) {
+        $c = $bmp.GetPixel($cropX + $x, $cropY + $y)
+        # Calculate how far this pixel is from the dark background (30,30,30)
+        # Foreground Red channel is ~232..234, so (R - 30) / (233 - 30) gives exact alpha!
+        $dr = [Math]::Max(0.0, ($c.R - $bgR))
+        $dg = [Math]::Max(0.0, ($c.G - $bgG))
+        $db = [Math]::Max(0.0, ($c.B - $bgB))
+        
+        $alphaNorm = $dr / 202.0
+        if ($alphaNorm -gt 1.0) { $alphaNorm = 1.0 }
+        if ($alphaNorm -lt 0.08) {
+            $emblemBmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
+        } else {
+            # Un-premultiply color from background
+            $outR = [Math]::Min(255, [Math]::Max(0, [int]($bgR + ($c.R - $bgR) / $alphaNorm)))
+            $outG = [Math]::Min(255, [Math]::Max(0, [int]($bgG + ($c.G - $bgG) / $alphaNorm)))
+            $outB = [Math]::Min(255, [Math]::Max(0, [int]($bgB + ($c.B - $bgB) / $alphaNorm)))
+            $outA = [Math]::Min(255, [Math]::Max(0, [int]($alphaNorm * 255.0)))
+            $emblemBmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb($outA, $outR, $outG, $outB))
+        }
     }
+}
 
-    $dest = New-Object System.Drawing.Bitmap($size, $size)
-    $g = [System.Drawing.Graphics]::FromImage($dest)
+$emblemOutPath = "e:\Dandali\public\images\zaure-emblem.png"
+$emblemBmp.Save($emblemOutPath, [System.Drawing.Imaging.ImageFormat]::Png)
+Write-Host "Saved transparent emblem to $emblemOutPath ($cropW x $cropH)"
+
+# 3. Helper function to generate square App Icons with the Emblem centered
+function Save-EmblemAppIcon([int]$size, [string]$outPath, [bool]$isRound = $false, [double]$scale = 0.72) {
+    $outBmp = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g = [System.Drawing.Graphics]::FromImage($outBmp)
+    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
     $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
 
-    # Dark background matching logo background #1A1A1A
-    $bgColor = [System.Drawing.ColorTranslator]::FromHtml("#1A1A1A")
-    $bgBrush = New-Object System.Drawing.SolidBrush($bgColor)
-    $g.FillRectangle($bgBrush, 0, 0, $size, $size)
-
+    $bgBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255, 30, 30, 30))
     if ($isRound) {
-        # Clip to circle
-        $path = New-Object System.Drawing.Drawing2D.GraphicsPath
-        $path.AddEllipse(0, 0, $size, $size)
-        $g.SetClip($path)
-        $g.FillEllipse($bgBrush, 0, 0, $size, $size)
+        $g.Clear([System.Drawing.Color]::Transparent)
+        $g.FillEllipse($bgBrush, 0, 0, $size - 1, $size - 1)
+    } else {
+        $g.Clear([System.Drawing.Color]::FromArgb(255, 30, 30, 30))
     }
 
-    # Draw centered with a little padding (e.g. 10% on each side)
-    $pad = [int]($size * 0.1)
-    $drawSize = $size - (2 * $pad)
-    $g.DrawImage($bmp, $pad, $pad, $drawSize, $drawSize)
+    # Fit emblem within $scale of $size
+    $maxDim = $size * $scale
+    $ratio = [Math]::Min($maxDim / $cropW, $maxDim / $cropH)
+    $drawW = [int]($cropW * $ratio)
+    $drawH = [int]($cropH * $ratio)
+    $drawX = [int](($size - $drawW) / 2)
+    $drawY = [int](($size - $drawH) / 2)
 
+    $g.DrawImage($emblemBmp, $drawX, $drawY, $drawW, $drawH)
+    $bgBrush.Dispose()
     $g.Dispose()
-    $dest.Save($outPath, [System.Drawing.Imaging.ImageFormat]::Png)
-    $dest.Dispose()
-    Write-Host "Saved: $outPath ($size x $size)"
+    $outBmp.Save($outPath, [System.Drawing.Imaging.ImageFormat]::Png)
+    $outBmp.Dispose()
 }
 
-# Android mipmap sizes:
-# mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192
-$sizes = @{
-    "android\app\src\main\res\mipmap-mdpi" = 48
-    "android\app\src\main\res\mipmap-hdpi" = 72
-    "android\app\src\main\res\mipmap-xhdpi" = 96
-    "android\app\src\main\res\mipmap-xxhdpi" = 144
-    "android\app\src\main\res\mipmap-xxxhdpi" = 192
+# Generate Web & PWA Icons
+Save-EmblemAppIcon 512 "e:\Dandali\public\images\zaure-icon.png" $false 0.74
+Save-EmblemAppIcon 512 "e:\Dandali\public\icon-512.png" $false 0.74
+Save-EmblemAppIcon 192 "e:\Dandali\public\icon-192.png" $false 0.74
+Save-EmblemAppIcon 64  "e:\Dandali\public\favicon.png" $false 0.80
+
+# Generate Android Mipmap Icons
+$mipmaps = @{
+    "mipmap-mdpi"    = 48
+    "mipmap-hdpi"    = 72
+    "mipmap-xhdpi"   = 96
+    "mipmap-xxhdpi"  = 144
+    "mipmap-xxxhdpi" = 192
 }
 
-foreach ($entry in $sizes.GetEnumerator()) {
-    $dir = $entry.Key
-    $sz = $entry.Value
-    Save-Icon $zBmp $sz "e:\Dandali\$dir\ic_launcher.png" $false
-    Save-Icon $zBmp $sz "e:\Dandali\$dir\ic_launcher_round.png" $true
-    Save-Icon $zBmp $sz "e:\Dandali\$dir\ic_launcher_foreground.png" $false
+$fgSizes = @{
+    "mipmap-mdpi"    = 108
+    "mipmap-hdpi"    = 162
+    "mipmap-xhdpi"   = 216
+    "mipmap-xxhdpi"  = 324
+    "mipmap-xxxhdpi" = 432
 }
 
-# Also save web icons:
-Save-Icon $zBmp 192 "e:\Dandali\public\icon-192.png" $false
-Save-Icon $zBmp 512 "e:\Dandali\public\icon-512.png" $false
-Save-Icon $zBmp 64 "e:\Dandali\public\favicon.png" $false
+foreach ($folder in $mipmaps.Keys) {
+    $dir = "e:\Dandali\android\app\src\main\res\$folder"
+    $sz = $mipmaps[$folder]
+    $fgSz = $fgSizes[$folder]
+    Save-EmblemAppIcon $sz "$dir\ic_launcher.png" $false 0.72
+    Save-EmblemAppIcon $sz "$dir\ic_launcher_round.png" $true 0.68
+    Save-EmblemAppIcon $fgSz "$dir\ic_launcher_foreground.png" $false 0.50
+}
 
-$zBmp.Dispose()
-$srcBmp.Dispose()
-
+$emblemBmp.Dispose()
+$bmp.Dispose()
 Write-Host "All icons generated successfully!"

@@ -523,7 +523,7 @@ export default function NewsFeedPage() {
                 ))
               ) : (
                 <p className="text-xs text-muted-foreground italic py-2">
-                  No new users yet. Share Dandali link with friends!
+                  No new users yet. Share Zaure Connect link with friends!
                 </p>
               )}
             </div>
@@ -531,7 +531,7 @@ export default function NewsFeedPage() {
 
           {/* Regional Community Culture Footer */}
           <div className="text-center px-2 text-[11px] text-muted-foreground leading-relaxed">
-            &copy; {new Date().getFullYear()} Dandali Connect Africa.
+            &copy; {new Date().getFullYear()} Zaure Connect Africa.
             <br />
             Hausa &middot; English &middot; Kasuwa &middot; Al'umma
           </div>

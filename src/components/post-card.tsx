@@ -358,7 +358,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
               </Button>
               <div>
                 <span className="text-xs font-bold text-foreground block">
-                  Muryar Dandali (Voice Note)
+                  Muryar Zaure (Voice Note)
                 </span>
                 <span className="text-[11px] text-muted-foreground">
                   Tap to listen to oral audio post
@@ -590,7 +590,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
             onClick={() => {
               if (navigator.share) {
                 navigator.share({
-                  title: `${post.authorName} on Dandali Connect`,
+                  title: `${post.authorName} on Zaure Connect`,
                   text: post.content,
                   url: window.location.href,
                 }).catch(() => {});
