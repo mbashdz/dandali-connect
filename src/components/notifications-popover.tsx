@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,12 +10,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Bell, Heart, MessageSquare, UserPlus, Flame, Check } from "lucide-react";
+import { Bell, Heart, MessageSquare, UserPlus, Flame, CheckCheck } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useAppSettings } from "@/contexts/app-settings-context";
+import { useToast } from "@/hooks/use-toast";
 import {
   subscribeToNotifications,
   markNotificationAsRead,
+  markAllNotificationsAsRead,
   type AppNotification
 } from "@/lib/firebase/notifications";
 import Link from "next/link";
@@ -24,18 +26,65 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 export function NotificationsPopover() {
   const { currentUser } = useAuth();
   const { language } = useAppSettings();
+  const { toast } = useToast();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  const initialLoadDoneRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     if (!currentUser?.uid) return;
+    initialLoadDoneRef.current = false;
+    seenIdsRef.current.clear();
+
     const unsubscribe = subscribeToNotifications(currentUser.uid, (list) => {
+      if (!initialLoadDoneRef.current) {
+        list.forEach((n) => seenIdsRef.current.add(n.id));
+        initialLoadDoneRef.current = true;
+      } else {
+        list.forEach((n) => {
+          if (!seenIdsRef.current.has(n.id) && !n.read) {
+            seenIdsRef.current.add(n.id);
+            toast({
+              title: `${n.senderName}`,
+              description: n.title,
+            });
+            if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+              try {
+                new Notification(`Zaure Connect — ${n.senderName}`, {
+                  body: n.title,
+                  icon: "/favicon.png",
+                });
+              } catch {
+                // Ignore on browsers that require SW registration for Notification constructor
+              }
+            }
+          }
+        });
+      }
       setNotifications(list);
     });
     return () => unsubscribe();
-  }, [currentUser?.uid]);
+  }, [currentUser?.uid, toast]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadList = notifications.filter((n) => !n.read);
+  const unreadCount = unreadList.length;
+
+  const handleMarkAllRead = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!currentUser?.uid || unreadList.length === 0) return;
+    await markAllNotificationsAsRead(
+      currentUser.uid,
+      unreadList.map((n) => n.id)
+    );
+  };
 
   const getIcon = (type: AppNotification['type']) => {
     switch (type) {
@@ -72,11 +121,23 @@ export function NotificationsPopover() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 rounded-2xl p-1.5 shadow-2xl border border-border bg-card">
         <DropdownMenuLabel className="flex items-center justify-between px-3 py-2 text-xs font-bold">
-          <span>{language === "ha" ? "Sanarwa (Notifications)" : "Notifications"}</span>
+          <div className="flex items-center gap-1.5">
+            <span>{language === "ha" ? "Sanarwa (Notifications)" : "Notifications"}</span>
+            {unreadCount > 0 && (
+              <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">
+                {unreadCount}
+              </span>
+            )}
+          </div>
           {unreadCount > 0 && (
-            <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">
-              {unreadCount} {language === "ha" ? "sabuwa" : "new"}
-            </span>
+            <button
+              type="button"
+              onClick={handleMarkAllRead}
+              className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1"
+            >
+              <CheckCheck className="w-3.5 h-3.5" />
+              {language === "ha" ? "Karanta duka" : "Mark all read"}
+            </button>
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -131,3 +192,4 @@ export function NotificationsPopover() {
     </DropdownMenu>
   );
 }
+

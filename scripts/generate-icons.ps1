@@ -68,7 +68,7 @@ $emblemBmp.Save($emblemOutPath, [System.Drawing.Imaging.ImageFormat]::Png)
 Write-Host "Saved transparent emblem to $emblemOutPath ($cropW x $cropH)"
 
 # 3. Helper function to generate square App Icons with the Emblem centered
-function Save-EmblemAppIcon([int]$size, [string]$outPath, [bool]$isRound = $false, [double]$scale = 0.72) {
+function Save-EmblemAppIcon([int]$size, [string]$outPath, [bool]$isRound = $false, [double]$scale = 0.72, [bool]$transparentBg = $false) {
     $outBmp = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($outBmp)
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
@@ -76,7 +76,9 @@ function Save-EmblemAppIcon([int]$size, [string]$outPath, [bool]$isRound = $fals
     $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
 
     $bgBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255, 30, 30, 30))
-    if ($isRound) {
+    if ($transparentBg) {
+        $g.Clear([System.Drawing.Color]::Transparent)
+    } elseif ($isRound) {
         $g.Clear([System.Drawing.Color]::Transparent)
         $g.FillEllipse($bgBrush, 0, 0, $size - 1, $size - 1)
     } else {
@@ -99,10 +101,10 @@ function Save-EmblemAppIcon([int]$size, [string]$outPath, [bool]$isRound = $fals
 }
 
 # Generate Web & PWA Icons
-Save-EmblemAppIcon 512 "e:\Dandali\public\images\zaure-icon.png" $false 0.74
-Save-EmblemAppIcon 512 "e:\Dandali\public\icon-512.png" $false 0.74
-Save-EmblemAppIcon 192 "e:\Dandali\public\icon-192.png" $false 0.74
-Save-EmblemAppIcon 64  "e:\Dandali\public\favicon.png" $false 0.80
+Save-EmblemAppIcon 512 "e:\Dandali\public\images\zaure-icon.png" $false 0.76 $false
+Save-EmblemAppIcon 512 "e:\Dandali\public\icon-512.png" $false 0.76 $false
+Save-EmblemAppIcon 192 "e:\Dandali\public\icon-192.png" $false 0.76 $false
+Save-EmblemAppIcon 64  "e:\Dandali\public\favicon.png" $false 0.88 $true
 
 # Generate Android Mipmap Icons
 $mipmaps = @{
@@ -125,9 +127,9 @@ foreach ($folder in $mipmaps.Keys) {
     $dir = "e:\Dandali\android\app\src\main\res\$folder"
     $sz = $mipmaps[$folder]
     $fgSz = $fgSizes[$folder]
-    Save-EmblemAppIcon $sz "$dir\ic_launcher.png" $false 0.72
-    Save-EmblemAppIcon $sz "$dir\ic_launcher_round.png" $true 0.68
-    Save-EmblemAppIcon $fgSz "$dir\ic_launcher_foreground.png" $false 0.50
+    Save-EmblemAppIcon $sz "$dir\ic_launcher.png" $false 0.74 $false
+    Save-EmblemAppIcon $sz "$dir\ic_launcher_round.png" $true 0.70 $false
+    Save-EmblemAppIcon $fgSz "$dir\ic_launcher_foreground.png" $false 0.54 $true
 }
 
 $emblemBmp.Dispose()

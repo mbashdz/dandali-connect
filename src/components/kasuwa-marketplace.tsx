@@ -1,33 +1,36 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { 
   Store, 
-  Tag, 
   MapPin, 
   MessageCircle, 
   Search, 
   PlusCircle, 
   Phone, 
   CheckCircle2, 
-  Filter,
   Sparkles,
   Loader2,
   Camera,
-  ShieldAlert
+  ShieldAlert,
+  Pencil,
+  Trash2,
+  Maximize2,
+  X
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useAppSettings } from "@/contexts/app-settings-context";
 import { useToast } from "@/hooks/use-toast";
-import { getKasuwaItems, createKasuwaItem } from "@/lib/firebase/kasuwa";
+import { getKasuwaItems, createKasuwaItem, markKasuwaItemAsSold, updateKasuwaItem, deleteKasuwaItem } from "@/lib/firebase/kasuwa";
 import { uploadFile } from "@/lib/firebase/storage";
 import { ReportDialog } from "@/components/report-dialog";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 import type { KasuwaItem } from "@/types";
 
 export function KasuwaMarketplace() {
@@ -40,8 +43,20 @@ export function KasuwaMarketplace() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedItem, setSelectedItem] = useState<KasuwaItem | null>(null);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
   const [reportingItem, setReportingItem] = useState<KasuwaItem | null>(null);
+
+  // Seller Edit modal state
+  const [isEditingItem, setIsEditingItem] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editCategory, setEditCategory] = useState<KasuwaItem["category"]>("fashion");
+  const [editWhatsapp, setEditWhatsapp] = useState("");
+  const [isSavingSellerAction, setIsSavingSellerAction] = useState(false);
 
   // New listing state
   const [title, setTitle] = useState("");
@@ -51,8 +66,8 @@ export function KasuwaMarketplace() {
   const [category, setCategory] = useState<KasuwaItem["category"]>("fashion");
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
-  const [itemImageFile, setItemImageFile] = useState<File | null>(null);
-  const [itemImagePreview, setItemImagePreview] = useState<string | null>(null);
+  const [itemImageFiles, setItemImageFiles] = useState<File[]>([]);
+  const [itemImagePreviews, setItemImagePreviews] = useState<string[]>([]);
   const [isPublishing, setIsPublishing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -82,11 +97,18 @@ export function KasuwaMarketplace() {
   }, [selectedCategory]);
 
   const handleImagePick = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setItemImageFile(file);
-      setItemImagePreview(URL.createObjectURL(file));
+    if (e.target.files && e.target.files.length > 0) {
+      const incoming = Array.from(e.target.files);
+      const combined = [...itemImageFiles, ...incoming].slice(0, 4);
+      setItemImageFiles(combined);
+      setItemImagePreviews(combined.map((f) => URL.createObjectURL(f)));
     }
+  };
+
+  const removePickedImage = (idx: number) => {
+    const updatedFiles = itemImageFiles.filter((_, i) => i !== idx);
+    setItemImageFiles(updatedFiles);
+    setItemImagePreviews(updatedFiles.map((f) => URL.createObjectURL(f)));
   };
 
   const handleListItem = async (e: React.FormEvent) => {
@@ -95,9 +117,13 @@ export function KasuwaMarketplace() {
 
     setIsPublishing(true);
     try {
-      let imageUrl = "https://images.unsplash.com/photo-1590736969955-71cc94801759?w=800&auto=format&fit=crop&q=80";
-      if (itemImageFile) {
-        imageUrl = await uploadFile(itemImageFile, `kasuwa/${currentUser.uid}`);
+      let uploadedUrls: string[] = [];
+      if (itemImageFiles.length > 0) {
+        uploadedUrls = await Promise.all(
+          itemImageFiles.map((file) => uploadFile(file, `kasuwa/${currentUser.uid}`))
+        );
+      } else {
+        uploadedUrls = ["https://images.unsplash.com/photo-1590736969955-71cc94801759?w=800&auto=format&fit=crop&q=80"];
       }
 
       const cleanWhatsapp = whatsapp.replace(/[^0-9]/g, '');
@@ -109,10 +135,11 @@ export function KasuwaMarketplace() {
         currency: "NGN",
         location: location || "Nigeria",
         category,
-        imageUrl,
+        imageUrl: uploadedUrls[0],
+        imageUrls: uploadedUrls,
         sellerUid: currentUser.uid,
         sellerName: currentUser.name || "Zaure Merchant",
-        sellerPhone: phone || "+2348000000000",
+        sellerPhone: phone || `+${cleanWhatsapp || "2348000000000"}`,
         sellerWhatsapp: cleanWhatsapp || "2348000000000",
         sellerAvatarUrl: currentUser.avatarUrl || "https://placehold.co/100x100.png",
       });
@@ -128,8 +155,8 @@ export function KasuwaMarketplace() {
       setLocation("");
       setPhone("");
       setWhatsapp("");
-      setItemImageFile(null);
-      setItemImagePreview(null);
+      setItemImageFiles([]);
+      setItemImagePreviews([]);
       setIsListingModalOpen(false);
       fetchItems();
     } catch (err: any) {
@@ -140,6 +167,77 @@ export function KasuwaMarketplace() {
       });
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const handleToggleSold = async (item: KasuwaItem) => {
+    if (isSavingSellerAction) return;
+    setIsSavingSellerAction(true);
+    try {
+      const nextSold = !item.isSold;
+      await markKasuwaItemAsSold(item.id, nextSold);
+      const updated = { ...item, isSold: nextSold };
+      setSelectedItem(updated);
+      setItems((prev) => prev.map((it) => (it.id === item.id ? updated : it)));
+      toast({
+        title: nextSold ? "An saka alamar An Sayar (Marked as Sold)" : "An dawo da kaya Kasuwa (Marked as Available)",
+      });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Action failed", description: err.message });
+    } finally {
+      setIsSavingSellerAction(false);
+    }
+  };
+
+  const openEditListingModal = (item: KasuwaItem) => {
+    setEditTitle(item.title);
+    setEditDescription(item.description);
+    setEditPrice(String(item.price));
+    setEditLocation(item.location);
+    setEditCategory(item.category);
+    setEditWhatsapp(item.sellerWhatsapp || "");
+    setIsEditingItem(true);
+  };
+
+  const handleSaveEditedListing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedItem || isSavingSellerAction) return;
+    setIsSavingSellerAction(true);
+    try {
+      const cleanWa = editWhatsapp.replace(/[^0-9]/g, "");
+      const updates = {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        price: Number(editPrice) || 0,
+        location: editLocation.trim(),
+        category: editCategory,
+        sellerWhatsapp: cleanWa,
+      };
+      await updateKasuwaItem(selectedItem.id, updates);
+      const updated = { ...selectedItem, ...updates };
+      setSelectedItem(updated);
+      setItems((prev) => prev.map((it) => (it.id === selectedItem.id ? updated : it)));
+      setIsEditingItem(false);
+      toast({ title: "An sabunta bayanan kaya (Listing updated)!" });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Could not update listing", description: err.message });
+    } finally {
+      setIsSavingSellerAction(false);
+    }
+  };
+
+  const handleDeleteListing = async (item: KasuwaItem) => {
+    if (isSavingSellerAction) return;
+    setIsSavingSellerAction(true);
+    try {
+      await deleteKasuwaItem(item.id);
+      setItems((prev) => prev.filter((it) => it.id !== item.id));
+      setSelectedItem(null);
+      toast({ title: "An goge kaya daga Kasuwa (Listing deleted)" });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Could not delete listing", description: err.message });
+    } finally {
+      setIsSavingSellerAction(false);
     }
   };
 
@@ -158,6 +256,12 @@ export function KasuwaMarketplace() {
       maximumFractionDigits: 0,
     }).format(amount);
   };
+
+  const selectedItemPhotos = selectedItem
+    ? selectedItem.imageUrls && selectedItem.imageUrls.length > 0
+      ? selectedItem.imageUrls
+      : [selectedItem.imageUrl]
+    : [];
 
   return (
     <div className="w-full">
@@ -234,7 +338,10 @@ export function KasuwaMarketplace() {
           {filteredItems.map((item) => (
             <Card
               key={item.id}
-              onClick={() => setSelectedItem(item)}
+              onClick={() => {
+                setSelectedItem(item);
+                setActivePhotoIndex(0);
+              }}
               className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group flex flex-col justify-between"
             >
               <div>
@@ -243,13 +350,25 @@ export function KasuwaMarketplace() {
                   <img
                     src={item.imageUrl}
                     alt={item.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${
+                      item.isSold ? "opacity-60 grayscale-[35%]" : ""
+                    }`}
                   />
-                  <div className="absolute top-2.5 left-2.5">
+                  <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
                     <span className="bg-primary/95 text-primary-foreground font-black text-xs px-2.5 py-1 rounded-lg shadow-md">
                       {formatCurrency(item.price, item.currency)}
                     </span>
+                    {item.isSold && (
+                      <span className="bg-destructive text-destructive-foreground font-extrabold text-[10px] uppercase tracking-wider px-2 py-1 rounded-lg shadow-md">
+                        AN SAYAR (SOLD)
+                      </span>
+                    )}
                   </div>
+                  {item.imageUrls && item.imageUrls.length > 1 && (
+                    <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                      +{item.imageUrls.length} photos
+                    </div>
+                  )}
                   <div className="absolute bottom-2.5 left-2.5 right-2.5 flex justify-between items-center pointer-events-none">
                     <span className="bg-black/60 backdrop-blur-md text-white text-[11px] px-2 py-0.5 rounded-md flex items-center gap-1">
                       <MapPin className="w-3 h-3 text-secondary" />
@@ -305,16 +424,47 @@ export function KasuwaMarketplace() {
         <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
           <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden bg-card">
             <div className="grid grid-cols-1 md:grid-cols-2">
-              <div className="relative aspect-square md:aspect-auto w-full bg-muted">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={selectedItem.imageUrl}
-                  alt={selectedItem.title}
-                  className="w-full h-full object-cover"
-                />
+              <div className="relative flex flex-col bg-muted">
+                <div
+                  className="relative aspect-square md:flex-1 w-full bg-muted cursor-zoom-in group"
+                  onClick={() => setLightboxOpen(true)}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={selectedItemPhotos[activePhotoIndex] || selectedItem.imageUrl}
+                    alt={selectedItem.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-3 right-3 bg-black/60 text-white p-2 rounded-full opacity-80 group-hover:opacity-100 transition-opacity">
+                    <Maximize2 className="w-4 h-4" />
+                  </div>
+                  {selectedItem.isSold && (
+                    <div className="absolute top-3 left-3 bg-destructive text-destructive-foreground font-extrabold text-xs px-3 py-1 rounded-lg shadow">
+                      AN SAYAR (SOLD)
+                    </div>
+                  )}
+                </div>
+
+                {selectedItemPhotos.length > 1 && (
+                  <div className="flex items-center gap-2 p-2.5 bg-background/90 border-t overflow-x-auto">
+                    {selectedItemPhotos.map((photoUrl, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActivePhotoIndex(idx)}
+                        className={`relative w-14 h-14 rounded-xl overflow-hidden border-2 shrink-0 transition-all ${
+                          activePhotoIndex === idx ? "border-primary scale-105" : "border-transparent opacity-70"
+                        }`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={photoUrl} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div className="p-6 flex flex-col justify-between">
+              <div className="p-6 flex flex-col justify-between max-h-[85vh] overflow-y-auto">
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <Badge variant="outline" className="text-xs capitalize font-semibold">
@@ -334,8 +484,11 @@ export function KasuwaMarketplace() {
                     {selectedItem.title}
                   </h2>
 
-                  <div className="text-2xl font-black text-primary mb-4">
-                    {formatCurrency(selectedItem.price, selectedItem.currency)}
+                  <div className="text-2xl font-black text-primary mb-4 flex items-center gap-2">
+                    <span>{formatCurrency(selectedItem.price, selectedItem.currency)}</span>
+                    {selectedItem.isSold && (
+                      <Badge variant="destructive" className="text-xs">Sold</Badge>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
@@ -351,6 +504,45 @@ export function KasuwaMarketplace() {
                 </div>
 
                 <div className="space-y-3 pt-2">
+                  {/* Seller Management Controls if Current User is the Seller */}
+                  {currentUser?.uid === selectedItem.sellerUid && (
+                    <div className="p-3 rounded-2xl bg-primary/5 border border-primary/20 space-y-2">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-primary">
+                        Seller Controls (Gudanar da Kaya)
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant={selectedItem.isSold ? "outline" : "secondary"}
+                          onClick={() => handleToggleSold(selectedItem)}
+                          disabled={isSavingSellerAction}
+                          className="rounded-xl text-xs font-bold gap-1.5 flex-1"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          {selectedItem.isSold ? "Mark Available" : "Mark as Sold"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEditListingModal(selectedItem)}
+                          disabled={isSavingSellerAction}
+                          className="rounded-xl text-xs font-semibold gap-1"
+                        >
+                          <Pencil className="w-3.5 h-3.5" /> Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteListing(selectedItem)}
+                          disabled={isSavingSellerAction}
+                          className="rounded-xl text-xs font-semibold text-destructive hover:bg-destructive/10 gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-3 p-3 bg-muted/60 rounded-2xl">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -367,6 +559,7 @@ export function KasuwaMarketplace() {
                   <div className="flex gap-2">
                     <Button
                       asChild
+                      disabled={selectedItem.isSold}
                       className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl gap-2 shadow"
                     >
                       <a
@@ -396,9 +589,89 @@ export function KasuwaMarketplace() {
         </Dialog>
       )}
 
+      {/* Fullscreen Lightbox for Selected Kasuwa Item */}
+      <ImageLightbox
+        isOpen={lightboxOpen}
+        images={selectedItemPhotos}
+        initialIndex={activePhotoIndex}
+        onClose={() => setLightboxOpen(false)}
+        title={selectedItem?.title}
+      />
+
+      {/* Seller Edit Listing Modal */}
+      <Dialog open={isEditingItem} onOpenChange={setIsEditingItem}>
+        <DialogContent className="max-w-md rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-primary" />
+              Gyara Bayanan Kaya (Edit Listing)
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveEditedListing} className="space-y-3.5 pt-2">
+            <div>
+              <label className="text-xs font-semibold block mb-1">Item Title</label>
+              <Input
+                required
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold block mb-1">Price (₦ Naira)</label>
+                <Input
+                  required
+                  type="number"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold block mb-1">Location</label>
+                <Input
+                  required
+                  value={editLocation}
+                  onChange={(e) => setEditLocation(e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold block mb-1">WhatsApp Number</label>
+              <Input
+                value={editWhatsapp}
+                onChange={(e) => setEditWhatsapp(e.target.value)}
+                className="rounded-xl"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold block mb-1">Description</label>
+              <textarea
+                required
+                rows={3}
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                className="w-full p-2.5 rounded-xl border bg-background text-sm resize-none"
+              />
+            </div>
+            <DialogFooter className="flex gap-2 pt-2">
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setIsEditingItem(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSavingSellerAction} className="rounded-xl bg-primary text-primary-foreground font-bold">
+                {isSavingSellerAction && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* List an item Modal */}
       <Dialog open={isListingModalOpen} onOpenChange={setIsListingModalOpen}>
-        <DialogContent className="max-w-lg rounded-3xl p-6">
+        <DialogContent className="max-w-lg rounded-3xl p-6 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
               <Store className="w-5 h-5 text-primary" />
@@ -484,32 +757,49 @@ export function KasuwaMarketplace() {
               </div>
             </div>
 
-            {/* Photo upload */}
+            {/* Multi-Photo upload */}
             <div>
               <label className="text-xs font-semibold text-foreground block mb-1">
-                Product Photo
+                Product Photos (Up to 4 images)
               </label>
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-border/80 rounded-2xl p-4 text-center cursor-pointer hover:bg-muted/40 transition-colors"
-              >
-                {itemImagePreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={itemImagePreview} alt="Preview" className="h-32 mx-auto rounded-xl object-contain" />
-                ) : (
+              {itemImagePreviews.length > 0 && (
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  {itemImagePreviews.map((preview, idx) => (
+                    <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border bg-muted">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removePickedImage(idx)}
+                        className="absolute top-1 right-1 bg-black/70 text-white rounded-full p-0.5 hover:bg-destructive"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {itemImagePreviews.length < 4 && (
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-border/80 rounded-2xl p-4 text-center cursor-pointer hover:bg-muted/40 transition-colors"
+                >
                   <div className="flex flex-col items-center">
                     <Camera className="w-6 h-6 text-muted-foreground mb-1" />
-                    <span className="text-xs font-semibold text-muted-foreground">Tap to upload product photo</span>
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {itemImagePreviews.length > 0 ? "Add more photos" : "Tap to upload product photos (up to 4)"}
+                    </span>
                   </div>
-                )}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImagePick}
-                  accept="image/*"
-                  className="hidden"
-                />
-              </div>
+                  <input
+                    type="file"
+                    multiple
+                    ref={fileInputRef}
+                    onChange={handleImagePick}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                </div>
+              )}
             </div>
 
             <div>
@@ -552,3 +842,4 @@ export function KasuwaMarketplace() {
     </div>
   );
 }
+

@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/contexts/auth-context" 
 import { useAppSettings } from "@/contexts/app-settings-context"
-import { toggleLikePost, addCommentToPost, getPostComments, setCulturalReaction, updatePostContent, deletePost } from "@/lib/firebase/posts"
+import { toggleLikePost, addCommentToPost, deleteCommentFromPost, getPostComments, setCulturalReaction, updatePostContent, deletePost } from "@/lib/firebase/posts"
 import { uploadFile } from "@/lib/firebase/storage"
 import { VoiceRecorder } from "@/components/voice-recorder"
 import { useToast } from "@/hooks/use-toast"
@@ -201,14 +201,23 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
         voiceNoteUrl = await uploadFile(audioFile, `commentVoiceNotes/${currentUser.uid}`);
       }
 
-      const commentData = {
+      const commentData: {
+        authorUid: string;
+        authorUsername: string;
+        authorName: string;
+        authorAvatarUrl: string;
+        content: string;
+        voiceNoteUrl?: string;
+      } = {
         authorUid: currentUser.uid,
         authorUsername: currentUser.username || 'anonymous',
         authorName: currentUser.name || 'Anonymous',
         authorAvatarUrl: currentUser.avatarUrl || 'https://placehold.co/100x100.png',
         content: newComment.trim() || (voiceNoteUrl ? "🎙️ Sakon Murya (Voice Note)" : ""),
-        voiceNoteUrl,
       };
+      if (voiceNoteUrl) {
+        commentData.voiceNoteUrl = voiceNoteUrl;
+      }
       const addedComment = await addCommentToPost(post.id, commentData);
       setFetchedComments(prevComments => [addedComment, ...prevComments]);
       const updatedPost = { ...post, commentsCount: (post.commentsCount || 0) + 1 };
@@ -218,11 +227,25 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
       setCommentVoiceBlob(null);
       setIsRecordingCommentVoice(false);
       toast({ title: "An aike da sharhi (Comment posted)!" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to post comment:", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not post comment." });
+      toast({ variant: "destructive", title: "Error", description: error?.message || "Could not post comment." });
     } finally {
       setIsCommenting(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      await deleteCommentFromPost(post.id, commentId);
+      setFetchedComments(prev => prev.filter(c => c.id !== commentId));
+      const updatedPost = { ...post, commentsCount: Math.max(0, (post.commentsCount || 1) - 1) };
+      setPost(updatedPost);
+      if (onPostUpdate) onPostUpdate(updatedPost);
+      toast({ title: "An goge sharhi (Comment deleted)" });
+    } catch (err) {
+      console.error("Failed to delete comment:", err);
+      toast({ variant: "destructive", title: "Error", description: "Could not delete comment." });
     }
   };
 
@@ -696,9 +719,21 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
                         <Link href={`/${comment.authorUsername}`} className="text-xs font-bold hover:underline">
                           {comment.authorName}
                         </Link>
-                        <span className="text-[11px] text-muted-foreground">
-                          {comment.timestamp ? formatDistanceToNowStrict(new Date(comment.timestamp), { addSuffix: true }) : 'just now'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-muted-foreground">
+                            {comment.timestamp ? formatDistanceToNowStrict(new Date(comment.timestamp), { addSuffix: true }) : 'just now'}
+                          </span>
+                          {currentUser && (currentUser.uid === comment.authorUid || currentUser.uid === post.authorUid) && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteComment(comment.id)}
+                              className="text-muted-foreground hover:text-destructive transition-colors p-0.5"
+                              title="Delete comment"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       {comment.content && <p className="text-sm leading-relaxed mb-1.5">{comment.content}</p>}
                       {comment.voiceNoteUrl && (

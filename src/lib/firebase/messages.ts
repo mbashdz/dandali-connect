@@ -24,17 +24,23 @@ export const getConversationId = (uid1: string, uid2: string): string => {
 
 export const sendDirectMessage = async (
   recipient: User,
-  text: string
+  text: string,
+  media?: { imageUrl?: string; voiceNoteUrl?: string }
 ): Promise<string> => {
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error("Must be logged in to send a direct message.");
-  if (!text.trim()) throw new Error("Message text cannot be empty.");
+  if (!text.trim() && !media?.imageUrl && !media?.voiceNoteUrl) {
+    throw new Error("Message cannot be empty.");
+  }
 
   const conversationId = getConversationId(currentUser.uid, recipient.uid);
   const conversationRef = doc(db, 'conversations', conversationId);
 
   const senderName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Zaure User';
   const senderAvatar = currentUser.photoURL || 'https://placehold.co/100x100.png';
+
+  const summaryText = text.trim()
+    || (media?.imageUrl ? "📷 Hoto (Photo)" : "🎙️ Sakon Murya (Voice Note)");
 
   // 1. Update or create the parent conversation document
   await setDoc(conversationRef, {
@@ -52,14 +58,14 @@ export const sendDirectMessage = async (
         avatarUrl: recipient.avatarUrl || 'https://placehold.co/100x100.png',
       }
     },
-    lastMessage: text.trim(),
+    lastMessage: summaryText,
     lastSenderUid: currentUser.uid,
     updatedAt: serverTimestamp(),
   }, { merge: true });
 
   // 2. Add message to the messages subcollection
   const messagesSubRef = collection(db, 'conversations', conversationId, 'messages');
-  const messageDoc = await addDoc(messagesSubRef, {
+  const messagePayload: Record<string, any> = {
     senderUid: currentUser.uid,
     senderName,
     senderAvatarUrl: senderAvatar,
@@ -68,14 +74,18 @@ export const sendDirectMessage = async (
     text: text.trim(),
     createdAt: serverTimestamp(),
     read: false,
-  });
+  };
+  if (media?.imageUrl) messagePayload.imageUrl = media.imageUrl;
+  if (media?.voiceNoteUrl) messagePayload.voiceNoteUrl = media.voiceNoteUrl;
+
+  const messageDoc = await addDoc(messagesSubRef, messagePayload);
 
   // 3. Send in-app notification to recipient
   try {
     await createNotification(
       recipient.uid,
       'message',
-      `Ya aiko maka da sabon sako: "${text.trim().slice(0, 45)}${text.trim().length > 45 ? '...' : ''}"`,
+      `Ya aiko maka da sabon sako: "${summaryText.slice(0, 45)}${summaryText.length > 45 ? '...' : ''}"`,
       '/messages'
     );
   } catch (notifErr) {
@@ -141,7 +151,9 @@ export const subscribeToMessages = (
         senderAvatarUrl: data.senderAvatarUrl,
         recipientUid: data.recipientUid,
         recipientName: data.recipientName,
-        text: data.text,
+        text: data.text || '',
+        imageUrl: data.imageUrl,
+        voiceNoteUrl: data.voiceNoteUrl,
         createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
         read: !!data.read,
       });
@@ -151,3 +163,4 @@ export const subscribeToMessages = (
     console.error("[subscribeToMessages] Error:", err);
   });
 };
+

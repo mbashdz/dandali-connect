@@ -90,3 +90,17 @@ export const markNotificationAsRead = async (userId: string, notificationId: str
     console.warn("[markNotificationAsRead] Error:", err);
   }
 };
+
+export const markAllNotificationsAsRead = async (userId: string, notificationIds: string[]): Promise<void> => {
+  try {
+    await Promise.all(
+      notificationIds.map((id) => {
+        const notifDocRef = doc(db, 'users', userId, 'notifications', id);
+        return updateDoc(notifDocRef, { read: true });
+      })
+    );
+  } catch (err) {
+    console.warn("[markAllNotificationsAsRead] Error:", err);
+  }
+};
+

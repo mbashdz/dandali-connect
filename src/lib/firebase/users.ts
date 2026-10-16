@@ -205,3 +205,78 @@ export const unfollowUser = async (followerUid: string, targetUid: string): Prom
   }
 };
 
+export interface FollowConnectionItem {
+  uid: string;
+  name: string;
+  username: string;
+  avatarUrl: string;
+}
+
+export const getFollowersList = async (uid: string): Promise<FollowConnectionItem[]> => {
+  if (!uid) return [];
+  try {
+    const followersSnap = await getDocs(collection(db, 'users', uid, 'followers'));
+    const list: FollowConnectionItem[] = [];
+    for (const d of followersSnap.docs) {
+      const data = d.data();
+      if (data.name && data.username) {
+        list.push({
+          uid: data.uid || d.id,
+          name: data.name,
+          username: data.username,
+          avatarUrl: data.avatarUrl || 'https://placehold.co/100x100.png',
+        });
+      } else {
+        const profile = await getUserProfileByUid(d.id);
+        if (profile) {
+          list.push({
+            uid: profile.uid || d.id,
+            name: profile.name || 'Community Member',
+            username: profile.username || d.id,
+            avatarUrl: profile.avatarUrl || 'https://placehold.co/100x100.png',
+          });
+        }
+      }
+    }
+    return list;
+  } catch (err) {
+    console.error("[getFollowersList] Error:", err);
+    return [];
+  }
+};
+
+export const getFollowingList = async (uid: string): Promise<FollowConnectionItem[]> => {
+  if (!uid) return [];
+  try {
+    const followingSnap = await getDocs(collection(db, 'users', uid, 'following'));
+    const list: FollowConnectionItem[] = [];
+    for (const d of followingSnap.docs) {
+      const data = d.data();
+      const targetId = data.targetUid || d.id;
+      if (data.name && data.username) {
+        list.push({
+          uid: targetId,
+          name: data.name,
+          username: data.username,
+          avatarUrl: data.avatarUrl || 'https://placehold.co/100x100.png',
+        });
+      } else {
+        const profile = await getUserProfileByUid(targetId);
+        if (profile) {
+          list.push({
+            uid: profile.uid || targetId,
+            name: profile.name || 'Community Member',
+            username: profile.username || targetId,
+            avatarUrl: profile.avatarUrl || 'https://placehold.co/100x100.png',
+          });
+        }
+      }
+    }
+    return list;
+  } catch (err) {
+    console.error("[getFollowingList] Error:", err);
+    return [];
+  }
+};
+
+

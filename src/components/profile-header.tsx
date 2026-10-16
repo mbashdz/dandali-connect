@@ -7,12 +7,20 @@ import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Edit3, UserPlus, Check, MapPin, Link2, MessageSquare } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Edit3, UserPlus, Check, MapPin, Link2, MessageSquare, Users, Loader2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { DirectMessageDialog } from "@/components/direct-message-dialog"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/hooks/use-toast"
-import { followUser, unfollowUser, checkIsFollowing } from "@/lib/firebase/users"
+import {
+  followUser,
+  unfollowUser,
+  checkIsFollowing,
+  getFollowersList,
+  getFollowingList,
+  type FollowConnectionItem
+} from "@/lib/firebase/users"
 
 interface ProfileHeaderProps {
   user: User;
@@ -27,6 +35,11 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
   const [isUpdatingFollow, setIsUpdatingFollow] = useState(false);
   const [followersCountState, setFollowersCountState] = useState(user.followersCount || 0);
 
+  // Connections Modal State
+  const [connectionsModalType, setConnectionsModalType] = useState<"followers" | "following" | null>(null);
+  const [connectionsList, setConnectionsList] = useState<FollowConnectionItem[]>([]);
+  const [isLoadingConnections, setIsLoadingConnections] = useState(false);
+
   useEffect(() => {
     setFollowersCountState(user.followersCount || 0);
     if (currentUser && user.uid && currentUser.uid !== user.uid) {
@@ -36,8 +49,24 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
     }
   }, [currentUser, user.uid, user.followersCount]);
 
+  const openConnectionsModal = async (type: "followers" | "following") => {
+    setConnectionsModalType(type);
+    setIsLoadingConnections(true);
+    try {
+      const data = type === "followers"
+        ? await getFollowersList(user.uid)
+        : await getFollowingList(user.uid);
+      setConnectionsList(data);
+    } catch (err) {
+      console.error("Failed to load connections:", err);
+      setConnectionsList([]);
+    } finally {
+      setIsLoadingConnections(false);
+    }
+  };
+
   const getInitials = (name: string) => {
-    if (!name) return "DC";
+    if (!name) return "ZC";
     const names = name.split(' ');
     if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
     return names[0][0].toUpperCase() + (names[names.length - 1]?.[0]?.toUpperCase() || '');
@@ -86,11 +115,11 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
           <Image
             src={user.coverPhotoUrl}
             alt={`${user.name}'s cover photo`}
-            fill // Use fill instead of layout
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Provide sizes
-            style={{ objectFit: "cover" }} // Use style for objectFit
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            style={{ objectFit: "cover" }}
             data-ai-hint="profile cover background"
-            priority // Consider adding priority for LCP images
+            priority
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-primary to-secondary" data-ai-hint="abstract gradient"></div>
@@ -161,22 +190,80 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
             <span className="font-semibold">{user.postsCount || 0}</span> Posts
           </div>
           {(!user.hideFollowersCount || user.isCurrentUser) ? (
-            <div>
+            <button
+              type="button"
+              onClick={() => openConnectionsModal("followers")}
+              className="hover:text-primary transition-colors cursor-pointer text-left"
+            >
               <span className="font-semibold">{displayFollowersCount}</span> Followers
               {user.hideFollowersCount && user.isCurrentUser && (
                 <span className="ml-1 text-[10px] text-muted-foreground italic">(Hidden to public)</span>
               )}
-            </div>
+            </button>
           ) : (
             <div className="text-muted-foreground text-xs flex items-center">
               <span>Followers hidden</span>
             </div>
           )}
-          <div>
+          <button
+            type="button"
+            onClick={() => openConnectionsModal("following")}
+            className="hover:text-primary transition-colors cursor-pointer text-left"
+          >
             <span className="font-semibold">{user.followingCount || 0}</span> Following
-          </div>
+          </button>
         </div>
       </CardContent>
+
+      {/* Followers / Following List Modal */}
+      <Dialog open={!!connectionsModalType} onOpenChange={(open) => !open && setConnectionsModalType(null)}>
+        <DialogContent className="max-w-md rounded-3xl p-5">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              {connectionsModalType === "followers"
+                ? `Mabiya (Followers of @${user.username})`
+                : `Wadanda @${user.username} ke bi (Following)`}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-80 overflow-y-auto space-y-2 py-2">
+            {isLoadingConnections ? (
+              <div className="flex justify-center items-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : connectionsList.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-8">
+                {connectionsModalType === "followers"
+                  ? "Babu mabiya tukuna (No followers yet)."
+                  : "Ba a fara bin kowa ba tukuna (Not following anyone yet)."}
+              </p>
+            ) : (
+              connectionsList.map((conn) => (
+                <Link
+                  key={conn.uid}
+                  href={`/${conn.username || conn.uid}`}
+                  onClick={() => setConnectionsModalType(null)}
+                  className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-muted/70 transition-colors border border-border/40"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar className="h-10 w-10 border">
+                      <AvatarImage src={conn.avatarUrl} alt={conn.name} />
+                      <AvatarFallback className="text-xs font-bold">{getInitials(conn.name)}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-foreground truncate">{conn.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">@{conn.username}</p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" className="rounded-xl text-xs h-8">
+                    View Profile
+                  </Button>
+                </Link>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Direct Message Dialog */}
       {!user.isCurrentUser && (
@@ -189,3 +276,4 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
     </Card>
   )
 }
+

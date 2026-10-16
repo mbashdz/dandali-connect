@@ -263,6 +263,15 @@ export const toggleLikePost = async (postId: string, userId: string): Promise<{ 
       });
       updatedLikesCount = (postData.likesCount || 0) + 1;
       updatedLikedBy = [...currentlyLikedBy, userId];
+
+      if (postData.authorUid && postData.authorUid !== userId) {
+        createNotification(
+          postData.authorUid,
+          'like',
+          `Ya nuna sha'awa a kan sakonka (liked your post)`,
+          `/${postData.authorUsername || postData.authorUid}`
+        ).catch(() => {});
+      }
     }
     console.log(`[toggleLikePost] Post ${postId} like status updated. New count: ${updatedLikesCount}`);
     return { likesCount: updatedLikesCount, likedBy: updatedLikedBy };
@@ -301,8 +310,12 @@ export const addCommentToPost = async (
   const commentsRef = collection(postRef, 'comments');
   
   try {
-    const newCommentPayload: any = {
-      ...commentData,
+    const newCommentPayload: Record<string, any> = {
+      authorUid: commentData.authorUid,
+      authorUsername: commentData.authorUsername || 'anonymous',
+      authorName: commentData.authorName || 'Community Member',
+      authorAvatarUrl: commentData.authorAvatarUrl || 'https://placehold.co/100x100.png',
+      content: commentData.content.trim(),
       postId: postId,
       timestamp: serverTimestamp(),
     };
@@ -313,11 +326,33 @@ export const addCommentToPost = async (
     const commentDocRef = await addDoc(commentsRef, newCommentPayload);
     console.log(`[addCommentToPost] Comment added to post ${postId} with ID ${commentDocRef.id}`);
     
-    console.log(`[addCommentToPost] Attempting to increment commentsCount for post ${postId}`);
-    await updateDoc(postRef, {
-      commentsCount: increment(1)
-    });
-    console.log(`[addCommentToPost] Incremented commentsCount for post ${postId}`);
+    try {
+      await updateDoc(postRef, {
+        commentsCount: increment(1)
+      });
+    } catch (countErr) {
+      console.warn(`[addCommentToPost] Could not increment commentsCount for post ${postId}:`, countErr);
+    }
+
+    // Notify post author about the new comment
+    (async () => {
+      try {
+        const postSnap = await getDoc(postRef);
+        if (postSnap.exists()) {
+          const postData = postSnap.data() as Post;
+          if (postData.authorUid && postData.authorUid !== commentData.authorUid) {
+            await createNotification(
+              postData.authorUid,
+              'comment',
+              `@${commentData.authorUsername} ya yi sharhi a sakonka: "${commentData.content.trim().slice(0, 40)}"`,
+              `/${postData.authorUsername || postData.authorUid}`
+            );
+          }
+        }
+      } catch (notifErr) {
+        console.warn("[addCommentToPost] Notification warning:", notifErr);
+      }
+    })();
 
     const commentSnap = await getDoc(commentDocRef);
     const newComment = commentSnap.data();
@@ -335,6 +370,23 @@ export const addCommentToPost = async (
       console.error(`[addCommentToPost] Firestore permission denied. Check security rules for 'posts/${postId}/comments' (create) and 'posts' (update - commentsCount). SDK UID was: ${firebaseAuthCurrentUser?.uid}`);
     }
     throw error;
+  }
+};
+
+export const deleteCommentFromPost = async (postId: string, commentId: string): Promise<void> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error("Must be logged in to delete a comment.");
+
+  const commentRef = doc(db, 'posts', postId, 'comments', commentId);
+  await deleteDoc(commentRef);
+
+  try {
+    const postRef = doc(db, 'posts', postId);
+    await updateDoc(postRef, {
+      commentsCount: increment(-1),
+    });
+  } catch (err) {
+    console.warn("[deleteCommentFromPost] Could not decrement commentsCount:", err);
   }
 };
 
@@ -433,6 +485,16 @@ export const setCulturalReaction = async (
         likedBy: newLikedBy,
         likesCount: newLikesCount
       });
+
+      if (!prevReaction && postData.authorUid && postData.authorUid !== userId) {
+        createNotification(
+          postData.authorUid,
+          'like',
+          `Ya nuna "${reaction.toUpperCase()}" a kan sakonka (reacted to your post)`,
+          `/${postData.authorUsername || postData.authorUid}`
+        ).catch(() => {});
+      }
+
       return { likesCount: newLikesCount, reactionsCount: updatedCounts, currentUserReaction: reaction };
     }
   } catch (error: any) {

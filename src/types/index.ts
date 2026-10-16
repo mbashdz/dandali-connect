@@ -90,6 +90,7 @@ export interface KasuwaItem {
   location: string;
   category: 'electronics' | 'fashion' | 'food' | 'vehicles' | 'services' | 'handicrafts' | 'property';
   imageUrl: string;
+  imageUrls?: string[];
   sellerUid: string;
   sellerName: string;
   sellerPhone?: string;
@@ -107,6 +108,8 @@ export interface DirectMessage {
   recipientUid: string;
   recipientName: string;
   text: string;
+  imageUrl?: string;
+  voiceNoteUrl?: string;
   createdAt: string;
   read?: boolean;
 }
