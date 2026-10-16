@@ -24,6 +24,22 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/child-safety',
+        destination: '/safety-standards',
+      },
+      {
+        source: '/privacy-policy',
+        destination: '/privacy',
+      },
+      {
+        source: '/terms-of-service',
+        destination: '/terms',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
