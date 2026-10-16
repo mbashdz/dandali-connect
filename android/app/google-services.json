@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "445883547471-un32h9tnhaqjn62qoemkl68i75a1g6ds.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.zaure.connect",
+            "certificate_hash": "63757fb5b3ef75e8fd14892550f35a9773fc0415"
+          }
+        },
+        {
           "client_id": "445883547471-aikp7j30nsb7ginj1porasrlicf08f89.apps.googleusercontent.com",
           "client_type": 3
         }

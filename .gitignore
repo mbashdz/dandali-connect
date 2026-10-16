@@ -44,5 +44,12 @@ next-env.d.ts
 firebase-debug.log
 firestore-debug.log
 
-# android
+# android & release signing
 *.apk
+*.aab
+*.jks
+*.keystore
+keystore.properties
+android/keystore.properties
+android/app/*.jks
+playstore-assets/

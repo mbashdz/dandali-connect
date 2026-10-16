@@ -12,16 +12,29 @@ import { useAuth } from "@/contexts/auth-context";
 import { useAppSettings } from "@/contexts/app-settings-context";
 import { useToast } from "@/hooks/use-toast";
 import { updateUserProfile } from "@/lib/firebase/users";
+import { deleteCurrentUserAccount } from "@/lib/firebase/auth";
 import { uploadFile } from "@/lib/firebase/storage";
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import type { User } from "@/types";
-import { Loader2, Camera, ShieldCheck, Globe, Wifi, UserCheck, FileText } from "lucide-react";
+import { Loader2, Camera, ShieldCheck, Globe, Wifi, UserCheck, FileText, Trash2, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function SettingsPage() {
   const { currentUser, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const { language, setLanguage, dataSaver, setDataSaver, t } = useAppSettings();
   
   const [name, setName] = useState(currentUser?.name || "");
@@ -33,8 +46,37 @@ export default function SettingsPage() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDeleteAccount = async () => {
+    if (!currentUser || isDeletingAccount) return;
+    setIsDeletingAccount(true);
+    try {
+      await deleteCurrentUserAccount();
+      toast({
+        title: language === "ha" ? "An Goge Asusu" : "Account Deleted",
+        description:
+          language === "ha"
+            ? "An goge asusunka da bayananka daga Zaure Connect."
+            : "Your Zaure Connect account and data have been permanently deleted.",
+      });
+      setIsDeleteDialogOpen(false);
+      router.replace("/login");
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: language === "ha" ? "Ba a iya goge asusu ba" : "Account Deletion Failed",
+        description:
+          err.message ||
+          "For security, please log out and log back in before deleting your account.",
+      });
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
 
   useEffect(() => {
     if (currentUser) {
@@ -357,8 +399,70 @@ export default function SettingsPage() {
           <Link href="/privacy" className="text-primary hover:underline flex items-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5" /> Privacy Policy
           </Link>
+          <Link href="/delete-account" className="text-destructive hover:underline flex items-center gap-1">
+            <Trash2 className="w-3.5 h-3.5" /> Data & Account Deletion Policy
+          </Link>
         </div>
       </Card>
+
+      {/* Danger Zone: Account Deletion (Required for Google Play Store) */}
+      <Card className="rounded-3xl border border-destructive/30 bg-destructive/5 p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h4 className="text-sm font-bold text-destructive flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4" />
+              {language === "ha" ? "Goge Asusu (Delete Account)" : "Delete Account"}
+            </h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {language === "ha"
+                ? "Goge asusunka da dukkan bayananka na Zaure Connect har abada."
+                : "Permanently delete your Zaure Connect account, profile, posts, and marketplace listings."}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => setIsDeleteDialogOpen(true)}
+            className="rounded-xl font-bold text-xs gap-1.5 shrink-0"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {language === "ha" ? "Goge Asusu" : "Delete Account"}
+          </Button>
+        </div>
+      </Card>
+
+      {/* Delete Account Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="rounded-3xl max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base font-bold">
+              {language === "ha" ? "Tabbatar da Goge Asusu?" : "Delete Your Account Permanently?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs leading-relaxed">
+              {language === "ha"
+                ? "Wannan matakin ba za a iya dawo da shi ba. Za a goge asusunka, sakonninka, da kayanka na Kasuwa har abada."
+                : "This action cannot be undone. Your profile, posts, and marketplace items will be permanently removed from Zaure Connect."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="rounded-xl text-xs" disabled={isDeletingAccount}>
+              {language === "ha" ? "Fasa" : "Cancel"}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteAccount();
+              }}
+              disabled={isDeletingAccount}
+              className="rounded-xl text-xs font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingAccount && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+              {language === "ha" ? "Eh, Goge Asusu" : "Yes, Delete My Account"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

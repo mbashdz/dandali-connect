@@ -10,11 +10,12 @@ import {
   signInWithPopup,
   signInWithCredential,
   sendPasswordResetEmail,
+  deleteUser,
   type User as FirebaseUser
 } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import type { User } from '@/types';
 
 const googleProvider = new GoogleAuthProvider();
@@ -127,6 +128,47 @@ export const doSignOut = async () => {
     }
   }
   return signOut(auth);
+};
+
+export const deleteCurrentUserAccount = async () => {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error("You must be logged in to delete your account.");
+  }
+  const uid = user.uid;
+
+  // 1. Delete user's posts and kasuwa items where possible
+  try {
+    const postsQ = query(collection(db, "posts"), where("authorUid", "==", uid));
+    const postsSnap = await getDocs(postsQ);
+    await Promise.all(postsSnap.docs.map((d) => deleteDoc(d.ref).catch(() => {})));
+  } catch (e) {
+    console.warn("[deleteCurrentUserAccount] Post cleanup warning:", e);
+  }
+
+  try {
+    const kasuwaQ = query(collection(db, "kasuwa"), where("sellerUid", "==", uid));
+    const kasuwaSnap = await getDocs(kasuwaQ);
+    await Promise.all(kasuwaSnap.docs.map((d) => deleteDoc(d.ref).catch(() => {})));
+  } catch (e) {
+    console.warn("[deleteCurrentUserAccount] Kasuwa cleanup warning:", e);
+  }
+
+  // 2. Delete user profile document
+  try {
+    await deleteDoc(doc(db, "users", uid));
+  } catch (e) {
+    console.warn("[deleteCurrentUserAccount] User profile delete warning:", e);
+  }
+
+  // 3. Delete Firebase Auth account
+  await deleteUser(user);
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await FirebaseAuthentication.signOut();
+    } catch {}
+  }
 };
 
 export const onAuthUserChanged = (callback: (user: User | null) => void, errorCallback?: (error: Error) => void) => {
