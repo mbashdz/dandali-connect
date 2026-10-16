@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "445883547471-l5qc05j2462esipg88locbvqqlrg1an2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.zaure.connect",
+            "certificate_hash": "a933ef1bbc1f9b3596352bf981b32d71cac3abe4"
+          }
+        },
+        {
           "client_id": "445883547471-qn4undd7jeqphqkg8dfi1qc4k3scre6h.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
