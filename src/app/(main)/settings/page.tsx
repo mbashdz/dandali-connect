@@ -198,7 +198,7 @@ export default function SettingsPage() {
 
             <div className="space-y-1.5">
               <Label htmlFor="bio" className="text-xs font-bold text-foreground">
-                Bio / Bayanin Kanka
+                {language === "ha" ? "Bayanin Kanka" : "Bio"}
               </Label>
               <Textarea
                 id="bio"
@@ -277,7 +277,7 @@ export default function SettingsPage() {
               onClick={() => setLanguage(language === "en" ? "ha" : "en")}
               className="rounded-xl font-bold text-xs"
             >
-              Switch to {language === "en" ? "Hausa" : "English"}
+              {language === "ha" ? "Switch to English" : "Change Language"}
             </Button>
           </div>
 

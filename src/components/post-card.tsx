@@ -213,7 +213,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
         authorUsername: currentUser.username || 'anonymous',
         authorName: currentUser.name || 'Anonymous',
         authorAvatarUrl: currentUser.avatarUrl || 'https://placehold.co/100x100.png',
-        content: newComment.trim() || (voiceNoteUrl ? "🎙️ Sakon Murya (Voice Note)" : ""),
+        content: newComment.trim() || (voiceNoteUrl ? (language === "ha" ? "🎙️ Sakon Murya" : "🎙️ Voice Note") : ""),
       };
       if (voiceNoteUrl) {
         commentData.voiceNoteUrl = voiceNoteUrl;
@@ -226,7 +226,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
       setNewComment("");
       setCommentVoiceBlob(null);
       setIsRecordingCommentVoice(false);
-      toast({ title: "An aike da sharhi (Comment posted)!" });
+      toast({ title: language === "ha" ? "An aike da sharhi!" : "Comment posted!" });
     } catch (error: any) {
       console.error("Failed to post comment:", error);
       toast({ variant: "destructive", title: "Error", description: error?.message || "Could not post comment." });
@@ -242,7 +242,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
       const updatedPost = { ...post, commentsCount: Math.max(0, (post.commentsCount || 1) - 1) };
       setPost(updatedPost);
       if (onPostUpdate) onPostUpdate(updatedPost);
-      toast({ title: "An goge sharhi (Comment deleted)" });
+      toast({ title: language === "ha" ? "An goge sharhi" : "Comment deleted" });
     } catch (err) {
       console.error("Failed to delete comment:", err);
       toast({ variant: "destructive", title: "Error", description: "Could not delete comment." });
@@ -305,9 +305,6 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
                     {post.authorName}
                   </CardTitle>
                 </Link>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary">
-                  Hausa
-                </span>
               </div>
               <p className="text-xs text-muted-foreground font-medium">
                 @{post.authorUsername} &middot; {timestamp}
@@ -331,14 +328,14 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
                     className="font-semibold cursor-pointer gap-2 rounded-xl text-xs hover:bg-muted"
                   >
                     <Pencil className="w-4 h-4 text-primary" />
-                    Gyara (Edit Post)
+                    {language === "ha" ? "Gyara" : "Edit Post"}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setIsDeleteDialogOpen(true)}
                     className="text-destructive font-semibold cursor-pointer gap-2 rounded-xl text-xs hover:bg-destructive/10"
                   >
                     <Trash2 className="w-4 h-4" />
-                    Goge (Delete Post)
+                    {language === "ha" ? "Goge" : "Delete Post"}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                 </>
@@ -348,7 +345,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
                 className="text-muted-foreground font-semibold cursor-pointer gap-2 rounded-xl text-xs hover:text-destructive"
               >
                 <ShieldAlert className="w-4 h-4" />
-                Report Post
+                {language === "ha" ? "Kai Raha" : "Report Post"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -381,10 +378,10 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
               </Button>
               <div>
                 <span className="text-xs font-bold text-foreground block">
-                  Muryar Zaure (Voice Note)
+                  {language === "ha" ? "Muryar Zaure" : "Voice Note"}
                 </span>
                 <span className="text-[11px] text-muted-foreground">
-                  Tap to listen to oral audio post
+                  {language === "ha" ? "Danna don sauraron murya" : "Tap to listen to audio post"}
                 </span>
               </div>
             </div>
@@ -592,7 +589,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
               )}
               <span>
                 {activeReactionMeta
-                  ? (language === "ha" ? activeReactionMeta.hausaLabel : activeReactionMeta.hausaLabel)
+                  ? (language === "ha" ? activeReactionMeta.hausaLabel : activeReactionMeta.englishLabel)
                   : t("like")}
               </span>
             </Button>
@@ -640,7 +637,10 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
                     onAudioRecorded={(blob) => {
                       setCommentVoiceBlob(blob);
                       setIsRecordingCommentVoice(false);
-                      toast({ title: "Sakon Murya ya Shirya", description: "Zaka iya aikawa yanzu." });
+                      toast({
+                        title: language === "ha" ? "Sakon Murya ya Shirya" : "Voice Note Ready",
+                        description: language === "ha" ? "Zaka iya aikawa yanzu." : "You can send your comment now.",
+                      });
                     }}
                     onCancel={() => setIsRecordingCommentVoice(false)}
                     disabled={isCommenting}
@@ -648,7 +648,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
                 ) : commentVoiceBlob ? (
                   <div className="p-2.5 bg-primary/10 border border-primary/30 rounded-2xl flex items-center justify-between">
                     <span className="text-xs font-semibold text-primary flex items-center gap-1.5">
-                      <Mic className="w-3.5 h-3.5" /> Sakon murya yana nan (Voice attached)
+                      <Mic className="w-3.5 h-3.5" /> {language === "ha" ? "Sakon murya yana nan" : "Voice note attached"}
                     </span>
                     <Button
                       type="button"
@@ -657,7 +657,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
                       className="text-xs text-destructive h-7 px-2"
                       onClick={() => setCommentVoiceBlob(null)}
                     >
-                      <X className="w-3.5 h-3.5 mr-1" /> Share
+                      <X className="w-3.5 h-3.5 mr-1" /> {language === "ha" ? "Share" : "Remove"}
                     </Button>
                   </div>
                 ) : null}
@@ -684,7 +684,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
                     onClick={() => setIsRecordingCommentVoice(true)}
                     className="rounded-xl h-10 w-10 text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
                     disabled={isCommenting || isRecordingCommentVoice}
-                    title="Sharhin Murya (Voice Comment)"
+                    title={language === "ha" ? "Sharhin Murya" : "Voice Comment"}
                   >
                     <Mic className="h-4 w-4" />
                   </Button>
@@ -774,7 +774,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
               </div>
             ) : (
               <p className="text-xs text-muted-foreground text-center py-4">
-                Babu sharhi tukuna. Kasance na farko! (No comments yet.)
+                {language === "ha" ? "Babu sharhi tukuna. Kasance na farko!" : "No comments yet. Be the first to comment!"}
               </p>
             )}
           </div>
@@ -796,14 +796,14 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
           <DialogHeader>
             <DialogTitle className="text-base font-bold flex items-center gap-2">
               <Pencil className="w-4 h-4 text-primary" />
-              Gyara Sakon Ka (Edit Post)
+              {language === "ha" ? "Gyara Sakon Ka" : "Edit Post"}
             </DialogTitle>
           </DialogHeader>
           <div className="py-2">
             <Textarea
               value={editContentText}
               onChange={(e) => setEditContentText(e.target.value)}
-              placeholder="Sabunta sakonka..."
+              placeholder={language === "ha" ? "Sabunta sakonka..." : "Update your post..."}
               rows={4}
               className="rounded-2xl resize-none text-sm leading-relaxed border-border/80"
             />
@@ -816,7 +816,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
               onClick={() => setIsEditDialogOpen(false)}
               disabled={isSavingEdit}
             >
-              Cancel
+              {language === "ha" ? "A'a" : "Cancel"}
             </Button>
             <Button
               size="sm"
@@ -825,7 +825,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
               disabled={!editContentText.trim() || isSavingEdit}
             >
               {isSavingEdit && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
-              Adana (Save Changes)
+              {language === "ha" ? "Adana" : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -837,15 +837,17 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-base font-bold text-destructive flex items-center gap-2">
               <Trash2 className="w-5 h-5" />
-              Goge wannan sakon? (Delete Post)
+              {language === "ha" ? "Goge wannan sakon?" : "Delete this post?"}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              Shin ka tabbata kana son goge wannan sakon daga Zaure Connect? Ba za a iya dawo da shi ba idan an goge.
+              {language === "ha"
+                ? "Shin ka tabbata kana son goge wannan sakon daga Zaure Connect? Ba za a iya dawo da shi ba idan an goge."
+                : "Are you sure you want to delete this post from Zaure Connect? This action cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex gap-2 mt-2">
             <AlertDialogCancel className="rounded-xl" disabled={isDeleting}>
-              A'a (Cancel)
+              {language === "ha" ? "A'a" : "Cancel"}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
@@ -856,7 +858,7 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
               disabled={isDeleting}
             >
               {isDeleting && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
-              I, Goge Shi (Yes, Delete)
+              {language === "ha" ? "I, Goge Shi" : "Yes, Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

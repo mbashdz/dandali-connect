@@ -14,10 +14,12 @@ import { Loader2, Search, Store, MapPin } from 'lucide-react';
 import { collection, query, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { getKasuwaItems } from '@/lib/firebase/kasuwa';
+import { useAppSettings } from '@/contexts/app-settings-context';
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { language } = useAppSettings();
   const searchTerm = searchParams.get('q') || '';
   
   const [inputQuery, setInputQuery] = useState(searchTerm);
@@ -144,7 +146,11 @@ export default function SearchPage() {
               type="search"
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
-              placeholder="Search people, posts, #hashtags, or Kasuwa items..."
+              placeholder={
+                language === "ha"
+                  ? "Nemo mutane, sakonni, #hashtags, ko kayan Kasuwa..."
+                  : "Search people, posts, #hashtags, or marketplace items..."
+              }
               className="pl-10 rounded-2xl h-11 bg-card border-border/80"
             />
           </div>
@@ -172,7 +178,9 @@ export default function SearchPage() {
             <TabsTrigger value="all" className="rounded-xl text-xs sm:text-sm">All ({totalResults})</TabsTrigger>
             <TabsTrigger value="people" className="rounded-xl text-xs sm:text-sm">People ({filteredUsers.length})</TabsTrigger>
             <TabsTrigger value="posts" className="rounded-xl text-xs sm:text-sm">Posts ({filteredPosts.length})</TabsTrigger>
-            <TabsTrigger value="kasuwa" className="rounded-xl text-xs sm:text-sm">Kasuwa ({filteredKasuwa.length})</TabsTrigger>
+            <TabsTrigger value="kasuwa" className="rounded-xl text-xs sm:text-sm">
+              {language === "ha" ? "Kasuwa" : "Marketplace"} ({filteredKasuwa.length})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="space-y-8">
@@ -213,7 +221,7 @@ export default function SearchPage() {
                 {filteredKasuwa.length > 0 && (
                   <section>
                     <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-                      <Store className="w-4 h-4 text-primary" /> Zaure Kasuwa Items
+                      <Store className="w-4 h-4 text-primary" /> {language === "ha" ? "Kayan Kasuwa" : "Marketplace Items"}
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {filteredKasuwa.map((item) => (
@@ -226,7 +234,9 @@ export default function SearchPage() {
                             <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{item.description}</p>
                             <div className="flex items-center justify-between mt-3 text-[11px] text-muted-foreground">
                               <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-primary" /> {item.location}</span>
-                              <Link href="/kasuwa" className="text-primary font-bold hover:underline">View in Kasuwa &rarr;</Link>
+                              <Link href="/kasuwa" className="text-primary font-bold hover:underline">
+                                {language === "ha" ? "Duba a Kasuwa" : "View in Marketplace"} &rarr;
+                              </Link>
                             </div>
                           </div>
                         </Card>
@@ -299,7 +309,9 @@ export default function SearchPage() {
                       <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{item.description}</p>
                       <div className="flex items-center justify-between mt-3 text-[11px] text-muted-foreground">
                         <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-primary" /> {item.location}</span>
-                        <Link href="/kasuwa" className="text-primary font-bold hover:underline">Open Kasuwa &rarr;</Link>
+                        <Link href="/kasuwa" className="text-primary font-bold hover:underline">
+                          {language === "ha" ? "Bude Kasuwa" : "Open Marketplace"} &rarr;
+                        </Link>
                       </div>
                     </div>
                   </Card>

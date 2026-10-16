@@ -76,13 +76,13 @@ export function CulturalReactionsPicker({
             className={`group relative flex flex-col items-center p-1.5 rounded-full transition-transform hover:scale-125 ${
               isSelected ? "scale-110 bg-primary/10" : ""
             }`}
-            title={`${item.hausaLabel} (${item.englishLabel})`}
+            title={lang === "ha" ? item.hausaLabel : item.englishLabel}
           >
             <span className="text-2xl leading-none transition-transform group-hover:-translate-y-1">
               {item.emoji}
             </span>
             <span className="absolute -bottom-6 opacity-0 group-hover:opacity-100 transition-opacity bg-foreground text-background text-[10px] font-semibold px-2 py-0.5 rounded-md whitespace-nowrap pointer-events-none shadow">
-              {lang === "ha" ? item.hausaLabel : `${item.hausaLabel} (${item.englishLabel})`}
+              {lang === "ha" ? item.hausaLabel : item.englishLabel}
             </span>
           </button>
         );

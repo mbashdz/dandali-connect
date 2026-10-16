@@ -74,7 +74,7 @@ export function KasuwaMarketplace() {
 
   const categories = [
     { id: "all", labelEn: "All Items", labelHa: "Duka Kayan" },
-    { id: "fashion", labelEn: "Fashion & Shadda", labelHa: "Kayan Sawa" },
+    { id: "fashion", labelEn: "Fashion & Attire", labelHa: "Kayan Sawa" },
     { id: "electronics", labelEn: "Phones & Tech", labelHa: "Wayoyi & Na'urori" },
     { id: "food", labelEn: "Agriculture & Food", labelHa: "Noma & Abinci" },
     { id: "handicrafts", labelEn: "Art & Handicrafts", labelHa: "Sana'o'in Hannu" },
@@ -145,8 +145,8 @@ export function KasuwaMarketplace() {
       });
 
       toast({
-        title: "Item Listed Successfully!",
-        description: "Your product is now visible to buyers across Zaure Kasuwa.",
+        title: language === "ha" ? "An Dora Kaya a Kasuwa!" : "Item Listed Successfully!",
+        description: language === "ha" ? "Kayanka yanzu yana bayyana ga masu saye." : "Your product is now visible to buyers across the marketplace.",
       });
 
       setTitle("");
@@ -180,7 +180,9 @@ export function KasuwaMarketplace() {
       setSelectedItem(updated);
       setItems((prev) => prev.map((it) => (it.id === item.id ? updated : it)));
       toast({
-        title: nextSold ? "An saka alamar An Sayar (Marked as Sold)" : "An dawo da kaya Kasuwa (Marked as Available)",
+        title: nextSold
+          ? language === "ha" ? "An saka alamar An Sayar" : "Marked as Sold"
+          : language === "ha" ? "An dawo da kaya Kasuwa" : "Marked as Available",
       });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Action failed", description: err.message });
@@ -218,7 +220,7 @@ export function KasuwaMarketplace() {
       setSelectedItem(updated);
       setItems((prev) => prev.map((it) => (it.id === selectedItem.id ? updated : it)));
       setIsEditingItem(false);
-      toast({ title: "An sabunta bayanan kaya (Listing updated)!" });
+      toast({ title: language === "ha" ? "An sabunta bayanan kaya!" : "Listing updated!" });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Could not update listing", description: err.message });
     } finally {
@@ -233,7 +235,7 @@ export function KasuwaMarketplace() {
       await deleteKasuwaItem(item.id);
       setItems((prev) => prev.filter((it) => it.id !== item.id));
       setSelectedItem(null);
-      toast({ title: "An goge kaya daga Kasuwa (Listing deleted)" });
+      toast({ title: language === "ha" ? "An goge kaya daga Kasuwa" : "Listing deleted" });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Could not delete listing", description: err.message });
     } finally {
@@ -360,7 +362,7 @@ export function KasuwaMarketplace() {
                     </span>
                     {item.isSold && (
                       <span className="bg-destructive text-destructive-foreground font-extrabold text-[10px] uppercase tracking-wider px-2 py-1 rounded-lg shadow-md">
-                        AN SAYAR (SOLD)
+                        {language === "ha" ? "AN SAYAR" : "SOLD"}
                       </span>
                     )}
                   </div>
@@ -409,12 +411,16 @@ export function KasuwaMarketplace() {
       ) : (
         <div className="text-center py-16 bg-card rounded-3xl border border-dashed border-border p-8">
           <Store className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-          <h3 className="text-lg font-bold">Babu Kayan da aka samu (No items found)</h3>
+          <h3 className="text-lg font-bold">
+            {language === "ha" ? "Babu Kayan da aka samu" : "No items found"}
+          </h3>
           <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto mb-4">
-            Be the first to list products, crafts, or agricultural produce on Zaure Kasuwa!
+            {language === "ha"
+              ? "Zama na farko wajen dora kayanka a Kasuwa!"
+              : "Be the first to list products, crafts, or agricultural produce on the marketplace!"}
           </p>
           <Button onClick={() => setIsListingModalOpen(true)} className="rounded-xl font-bold bg-primary text-primary-foreground">
-            <PlusCircle className="w-4 h-4 mr-1.5" /> List an Item
+            <PlusCircle className="w-4 h-4 mr-1.5" /> {language === "ha" ? "Saka Kaya" : "List an Item"}
           </Button>
         </div>
       )}
@@ -440,7 +446,7 @@ export function KasuwaMarketplace() {
                   </div>
                   {selectedItem.isSold && (
                     <div className="absolute top-3 left-3 bg-destructive text-destructive-foreground font-extrabold text-xs px-3 py-1 rounded-lg shadow">
-                      AN SAYAR (SOLD)
+                      {language === "ha" ? "AN SAYAR" : "SOLD"}
                     </div>
                   )}
                 </div>
@@ -508,7 +514,7 @@ export function KasuwaMarketplace() {
                   {currentUser?.uid === selectedItem.sellerUid && (
                     <div className="p-3 rounded-2xl bg-primary/5 border border-primary/20 space-y-2">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-primary">
-                        Seller Controls (Gudanar da Kaya)
+                        {language === "ha" ? "Gudanar da Kaya" : "Seller Controls"}
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <Button
@@ -563,7 +569,7 @@ export function KasuwaMarketplace() {
                       className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl gap-2 shadow"
                     >
                       <a
-                        href={`https://wa.me/${selectedItem.sellerWhatsapp || '2348000000000'}?text=Salam,%20I%20saw%20your%20Zaure%20Connect%20listing:%20${encodeURIComponent(selectedItem.title)}`}
+                        href={`https://wa.me/${selectedItem.sellerWhatsapp || '2348000000000'}?text=Hello,%20I%20saw%20your%20Zaure%20Connect%20listing:%20${encodeURIComponent(selectedItem.title)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
@@ -604,7 +610,7 @@ export function KasuwaMarketplace() {
           <DialogHeader>
             <DialogTitle className="text-lg font-bold flex items-center gap-2">
               <Pencil className="w-4 h-4 text-primary" />
-              Gyara Bayanan Kaya (Edit Listing)
+              {language === "ha" ? "Gyara Bayanan Kaya" : "Edit Listing"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSaveEditedListing} className="space-y-3.5 pt-2">

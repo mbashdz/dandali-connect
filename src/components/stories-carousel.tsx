@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export function StoriesCarousel() {
   const { currentUser } = useAuth();
-  const { t } = useAppSettings();
+  const { t, language } = useAppSettings();
   const { toast } = useToast();
   const [stories, setStories] = useState<Story[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -343,14 +343,18 @@ export function StoriesCarousel() {
                 className="rounded-xl border-dashed border-primary/50 text-xs font-bold gap-1.5 hover:bg-primary/10 hover:text-primary"
               >
                 <ImageIcon className="w-4 h-4 text-primary" />
-                <span>{storyImagePreview ? "Canja Hoto (Change Photo)" : "Sanya Hoto (Add Photo)"}</span>
+                <span>
+                  {storyImagePreview
+                    ? language === "ha" ? "Canja Hoto" : "Change Photo"
+                    : language === "ha" ? "Sanya Hoto" : "Add Photo"}
+                </span>
               </Button>
             </div>
 
             <textarea
               value={newStoryText}
               onChange={(e) => setNewStoryText(e.target.value)}
-              placeholder="Rubuta bayani (Optional caption or story message)..."
+              placeholder={language === "ha" ? "Rubuta bayani..." : "Optional caption or story message..."}
               className="w-full h-20 p-3 rounded-xl border bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
             />
 

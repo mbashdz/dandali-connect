@@ -10,9 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { signIn, resetPassword } from '@/lib/firebase/auth';
 import { useAuth } from '@/contexts/auth-context';
+import { useAppSettings } from '@/contexts/app-settings-context';
 import { useToast } from '@/hooks/use-toast';
 import { ZaureLogo } from '@/components/icons/dandali-logo';
-import { Sparkles, ShieldCheck, Heart, Loader2 } from 'lucide-react';
+import { Sparkles, ShieldCheck, Heart, Loader2, Globe } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { currentUser, loading: authLoading } = useAuth();
+  const { language, toggleLanguage } = useAppSettings();
 
   useEffect(() => {
     if (!authLoading && currentUser) {
@@ -33,8 +35,11 @@ export default function LoginPage() {
     if (!email.trim()) {
       toast({
         variant: "destructive",
-        title: "Shigar da Email (Enter Email)",
-        description: "Da fatan za a shigar da adireshin email dinka da farko don tura link din gyara kalmar sirri.",
+        title: language === "ha" ? "Shigar da Email" : "Enter Email Address",
+        description:
+          language === "ha"
+            ? "Da fatan za a shigar da adireshin email dinka da farko don tura link din gyara kalmar sirri."
+            : "Please enter your email address first so we can send you a password reset link.",
       });
       return;
     }
@@ -42,14 +47,17 @@ export default function LoginPage() {
     try {
       await resetPassword(email.trim());
       toast({
-        title: "An Tura Link Din Gyara (Reset Link Sent)",
-        description: `Mun tura maka sakon gyara kalmar sirri zuwa ${email}. Duba akwatin sakonka.`,
+        title: language === "ha" ? "An Tura Link Din Gyara" : "Reset Link Sent",
+        description:
+          language === "ha"
+            ? `Mun tura maka sakon gyara kalmar sirri zuwa ${email}. Duba akwatin sakonka.`
+            : `We have sent a password reset link to ${email}. Please check your inbox.`,
       });
     } catch (err: any) {
       toast({
         variant: "destructive",
-        title: "Kuskure (Error)",
-        description: err.message || "Ba a sami nasarar tura sakon ba.",
+        title: language === "ha" ? "Kuskure" : "Error",
+        description: err.message || "Could not send password reset email.",
       });
     } finally {
       setIsResettingPassword(false);
@@ -61,7 +69,10 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signIn(email, password);
-      toast({ title: "Barka da dawowa!", description: "Welcome back to Zaure Connect." });
+      toast({
+        title: language === "ha" ? "Barka da dawowa!" : "Welcome back!",
+        description: "Welcome back to Zaure Connect.",
+      });
       router.replace('/');
     } catch (error: any) {
       console.error('Login failed:', error);
@@ -82,16 +93,31 @@ export default function LoginPage() {
 
       <Card className="w-full max-w-md shadow-2xl rounded-3xl border border-border/80 bg-card/95 backdrop-blur-xl relative z-10 overflow-hidden">
         <div className="h-2 w-full bg-gradient-to-r from-primary via-amber-500 to-primary" />
-        
-        <CardHeader className="space-y-2 text-center pb-4 pt-6">
+
+        <div className="flex justify-end px-4 pt-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={toggleLanguage}
+            className="h-7 px-2.5 rounded-xl text-[11px] font-bold gap-1 text-muted-foreground hover:text-foreground"
+          >
+            <Globe className="w-3.5 h-3.5 text-primary" />
+            <span>{language === "ha" ? "English" : "Language: EN"}</span>
+          </Button>
+        </div>
+
+        <CardHeader className="space-y-2 text-center pb-4 pt-1">
           <div className="flex justify-center mb-2">
             <ZaureLogo size="lg" />
           </div>
           <CardTitle className="text-2xl font-black tracking-tight text-foreground">
-            Barka da Dawowa!
+            {language === "ha" ? "Barka da Dawowa!" : "Welcome Back!"}
           </CardTitle>
           <CardDescription className="text-xs sm:text-sm">
-            Log in to connect with friends, share moments, and explore Kasuwa.
+            {language === "ha"
+              ? "Shiga domin sada zumunci, raba labarai, da kasuwanci a Zaure Connect."
+              : "Log in to connect with friends, share moments, and explore the marketplace."}
           </CardDescription>
         </CardHeader>
 
@@ -125,7 +151,7 @@ export default function LoginPage() {
                   className="text-[11px] font-semibold text-primary hover:underline hover:text-primary/90 flex items-center gap-1"
                 >
                   {isResettingPassword && <Loader2 className="w-3 h-3 animate-spin" />}
-                  Mantawa da Kalmar Sirri? (Forgot?)
+                  {language === "ha" ? "Mantawa da Kalmar Sirri?" : "Forgot Password?"}
                 </button>
               </div>
               <Input
@@ -145,7 +171,7 @@ export default function LoginPage() {
               className="w-full h-11 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all text-sm mt-2"
               disabled={isLoading}
             >
-              {isLoading ? 'Connecting...' : 'Shiga (Log In)'}
+              {isLoading ? 'Connecting...' : language === "ha" ? 'Shiga' : 'Log In'}
             </Button>
           </form>
 
@@ -156,7 +182,7 @@ export default function LoginPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-card px-2 text-muted-foreground font-semibold">
-                Ko kuma (Or)
+                {language === "ha" ? "Ko kuma" : "Or"}
               </span>
             </div>
           </div>
@@ -172,7 +198,10 @@ export default function LoginPage() {
               try {
                 const { signInWithGoogle } = await import('@/lib/firebase/auth');
                 await signInWithGoogle();
-                toast({ title: "Barka da zuwa!", description: "Signed in with Google successfully." });
+                toast({
+                  title: language === "ha" ? "Barka da zuwa!" : "Welcome!",
+                  description: "Signed in with Google successfully.",
+                });
                 router.replace('/');
               } catch (err: any) {
                 console.error("Google login failed:", err);
@@ -203,7 +232,7 @@ export default function LoginPage() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
-            <span>Ci gaba da Google (Continue with Google)</span>
+            <span>{language === "ha" ? "Ci gaba da Google" : "Continue with Google"}</span>
           </Button>
 
           {/* Cultural badge */}
@@ -215,9 +244,9 @@ export default function LoginPage() {
 
         <CardFooter className="flex flex-col items-center space-y-2 pb-6 pt-2 bg-muted/20 border-t border-border/40">
           <p className="text-xs text-muted-foreground">
-            Sabon mai amfani? (New here?){' '}
+            {language === "ha" ? "Sabon mai amfani?" : "New here?"}{' '}
             <Button variant="link" asChild className="p-0 h-auto text-primary font-bold text-xs hover:underline">
-              <Link href="/signup">Yi Rajista (Create Account)</Link>
+              <Link href="/signup">{language === "ha" ? "Yi Rajista" : "Create Account"}</Link>
             </Button>
           </p>
         </CardFooter>

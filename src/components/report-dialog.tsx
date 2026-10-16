@@ -41,7 +41,7 @@ export function ReportDialog({
 
   const reportReasons: { id: ReportCategory; label: string; desc: string }[] = [
     { id: "hate_speech", label: "Hate Speech or Tribal Discrimination", desc: "Attacks against ethnic, tribal, religious, or minority groups" },
-    { id: "scam", label: "Fraud or Fake Kasuwa Listing", desc: "Misleading pricing, fake goods, advance fee fraud" },
+    { id: "scam", label: "Fraud or Fake Marketplace Listing", desc: "Misleading pricing, fake goods, advance fee fraud" },
     { id: "spam", label: "Spam or Bot Activity", desc: "Repeated junk posts, fake advertisements, phishing links" },
     { id: "harassment", label: "Harassment or Bullying", desc: "Direct threats, personal attacks, intimidation" },
     { id: "nudity", label: "Inappropriate / Explicit Imagery", desc: "Violates African cultural standards and safety policies" },
@@ -100,7 +100,7 @@ export function ReportDialog({
             <CheckCircle2 className="w-12 h-12 text-emerald-500 animate-in zoom-in" />
             <h4 className="font-bold text-foreground text-sm">Report Submitted</h4>
             <p className="text-xs text-muted-foreground max-w-xs">
-              Madalla. Thank you for protecting the community.
+              Thank you for protecting the community.
             </p>
           </div>
         ) : (

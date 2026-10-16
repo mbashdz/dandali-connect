@@ -177,7 +177,7 @@ export default function ExplorePage() {
         </h2>
         <Card className="rounded-2xl border border-border/80 p-5 bg-card">
           <div className="flex flex-wrap gap-2.5">
-            {["#ArewaConnect", "#Kano", "#HausaCulture", "#KadunaTech", "#NaijaGist", "#ZaureCommunity", "#AfricanHeritage", "#Abuja"].map(tag => (
+            {["#ZaureConnect", "#Kano", "#AfricanCulture", "#KadunaTech", "#NaijaGist", "#ZaureCommunity", "#AfricanHeritage", "#Abuja"].map(tag => (
               <Button key={tag} variant="outline" size="sm" asChild className="rounded-xl text-xs font-bold hover:bg-primary/10 hover:text-primary transition-colors">
                 <Link href={`/search?q=${encodeURIComponent(tag)}`}>{tag}</Link>
               </Button>

@@ -87,6 +87,14 @@ export default function NewsFeedPage() {
     }
   }, [authLoading, fetchPosts, currentUser?.uid]);
 
+  useEffect(() => {
+    const onPullRefresh = () => {
+      fetchPosts();
+    };
+    window.addEventListener("zaure-pull-refresh", onPullRefresh);
+    return () => window.removeEventListener("zaure-pull-refresh", onPullRefresh);
+  }, [fetchPosts]);
+
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
       const selectedFiles = Array.from(event.target.files);
@@ -132,8 +140,8 @@ export default function NewsFeedPage() {
     setVoiceAudioUrl(audioUrl);
     setIsRecordingVoice(false);
     toast({
-      title: "Murya ta Shirya (Voice Note Attached)",
-      description: `Zaka iya saurara kafin ka tura (You can listen before sharing).`,
+      title: language === "ha" ? "Murya ta Shirya" : "Voice Note Attached",
+      description: language === "ha" ? "Zaka iya saurara kafin ka tura." : "You can listen before sharing.",
     });
   };
 
@@ -241,13 +249,22 @@ export default function NewsFeedPage() {
               {language === "ha" ? "Abubuwan Da Ke Yawo" : "Trending Across Africa"}
             </h4>
             <div className="space-y-2.5">
-              {[
-                { tag: "#ArewaTech", count: "14.2k posts" },
-                { tag: "#KasuwarKwari", count: "8.5k posts" },
-                { tag: "#HausaCinema", count: "19.8k posts" },
-                { tag: "#ZaureMoments", count: "6.1k posts" },
-                { tag: "#AfricanHeritage", count: "25.3k posts" },
-              ].map((item) => (
+              {(language === "ha"
+                ? [
+                    { tag: "#ArewaTech", count: "14.2k posts" },
+                    { tag: "#KasuwarKwari", count: "8.5k posts" },
+                    { tag: "#HausaCinema", count: "19.8k posts" },
+                    { tag: "#ZaureMoments", count: "6.1k posts" },
+                    { tag: "#AfricanHeritage", count: "25.3k posts" },
+                  ]
+                : [
+                    { tag: "#AfricaTech", count: "14.2k posts" },
+                    { tag: "#ZaureMarketplace", count: "8.5k posts" },
+                    { tag: "#AfricanCinema", count: "19.8k posts" },
+                    { tag: "#ZaureMoments", count: "6.1k posts" },
+                    { tag: "#AfricanHeritage", count: "25.3k posts" },
+                  ]
+              ).map((item) => (
                 <Link
                   key={item.tag}
                   href={`/search?q=${encodeURIComponent(item.tag)}`}
@@ -260,11 +277,11 @@ export default function NewsFeedPage() {
             </div>
           </Card>
 
-          {/* Zaure Kasuwa Quick Card */}
+          {/* Zaure Marketplace Quick Card */}
           <Card className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-amber-500/10 to-transparent p-5 shadow-xs">
             <Sparkles className="w-6 h-6 text-primary mb-2" />
             <h4 className="text-sm font-bold text-foreground mb-1">
-              {language === "ha" ? "Bude Kasuwancin Ka" : "Trade on Zaure Kasuwa"}
+              {language === "ha" ? "Bude Kasuwancin Ka" : "Trade on Zaure Marketplace"}
             </h4>
             <p className="text-xs text-muted-foreground leading-relaxed mb-4">
               Sell traditional attire, agricultural harvests, phones, and services with 0 middleman fees.
@@ -533,7 +550,9 @@ export default function NewsFeedPage() {
           <div className="text-center px-2 text-[11px] text-muted-foreground leading-relaxed">
             &copy; {new Date().getFullYear()} Zaure Connect Africa.
             <br />
-            Hausa &middot; English &middot; Kasuwa &middot; Al'umma
+            {language === "ha"
+              ? "Hausa · English · Kasuwa · Al'umma"
+              : "Community · Marketplace · Culture"}
           </div>
         </div>
       </div>

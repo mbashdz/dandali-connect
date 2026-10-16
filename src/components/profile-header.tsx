@@ -12,6 +12,7 @@ import { Edit3, UserPlus, Check, MapPin, Link2, MessageSquare, Users, Loader2 } 
 import { useState, useEffect } from "react"
 import { DirectMessageDialog } from "@/components/direct-message-dialog"
 import { useAuth } from "@/contexts/auth-context"
+import { useAppSettings } from "@/contexts/app-settings-context"
 import { useToast } from "@/hooks/use-toast"
 import {
   followUser,
@@ -29,6 +30,7 @@ interface ProfileHeaderProps {
 
 export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
   const { currentUser } = useAuth();
+  const { language } = useAppSettings();
   const { toast } = useToast();
   const [isFollowing, setIsFollowing] = useState(user.isFollowedByCurrentUser || false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
@@ -90,10 +92,16 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
           },
           user.uid
         );
-        toast({ title: `Barka! Yanzu kana bin @${user.username}`, description: `You are now following ${user.name}` });
+        toast({
+          title: language === "ha" ? `Barka! Yanzu kana bin @${user.username}` : `Following @${user.username}`,
+          description: `You are now following ${user.name}`,
+        });
       } else {
         await unfollowUser(currentUser.uid, user.uid);
-        toast({ title: `Ka daina bin @${user.username}`, description: `Unfollowed ${user.name}` });
+        toast({
+          title: language === "ha" ? `Ka daina bin @${user.username}` : `Unfollowed @${user.username}`,
+          description: `Unfollowed ${user.name}`,
+        });
       }
     } catch (err: any) {
       console.error("[handleFollowToggle] Error:", err);
@@ -159,7 +167,7 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
                   className="rounded-xl border-primary/40 text-primary hover:bg-primary/10 gap-1.5"
                 >
                   <MessageSquare className="h-4 w-4" />
-                  <span>Sako (Message)</span>
+                  <span>{language === "ha" ? "Sako" : "Message"}</span>
                 </Button>
               </>
             ) : null}
@@ -222,8 +230,12 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
             <DialogTitle className="text-base font-bold flex items-center gap-2">
               <Users className="w-4 h-4 text-primary" />
               {connectionsModalType === "followers"
-                ? `Mabiya (Followers of @${user.username})`
-                : `Wadanda @${user.username} ke bi (Following)`}
+                ? language === "ha"
+                  ? `Mabiya (@${user.username})`
+                  : `Followers of @${user.username}`
+                : language === "ha"
+                ? `Wadanda @${user.username} ke bi`
+                : `Following (@${user.username})`}
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-80 overflow-y-auto space-y-2 py-2">
@@ -234,8 +246,8 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
             ) : connectionsList.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-8">
                 {connectionsModalType === "followers"
-                  ? "Babu mabiya tukuna (No followers yet)."
-                  : "Ba a fara bin kowa ba tukuna (Not following anyone yet)."}
+                  ? language === "ha" ? "Babu mabiya tukuna." : "No followers yet."
+                  : language === "ha" ? "Ba a fara bin kowa ba tukuna." : "Not following anyone yet."}
               </p>
             ) : (
               connectionsList.map((conn) => (

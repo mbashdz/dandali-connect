@@ -169,7 +169,11 @@ export default function MessagesInboxPage() {
                       {otherData.name}
                     </h3>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {isLastFromMe && <span className="text-primary font-semibold">Ka ce: </span>}
+                      {isLastFromMe && (
+                        <span className="text-primary font-semibold">
+                          {language === "ha" ? "Ka ce: " : "You: "}
+                        </span>
+                      )}
                       {convo.lastMessage}
                     </p>
                   </div>

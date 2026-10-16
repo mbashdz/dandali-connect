@@ -103,7 +103,7 @@ export function VoiceRecorder({ onAudioRecorded, onCancel, disabled }: VoiceReco
           <div className="flex items-center gap-2">
             <Radio className="w-5 h-5 text-primary animate-pulse" />
             <span className="text-xs font-semibold text-foreground">
-              Record Hausa/African voice note
+              Record voice note
             </span>
           </div>
           <div className="flex items-center gap-2">

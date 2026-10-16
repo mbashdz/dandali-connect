@@ -10,9 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { signUp } from '@/lib/firebase/auth';
 import { useAuth } from '@/contexts/auth-context';
+import { useAppSettings } from '@/contexts/app-settings-context';
 import { useToast } from '@/hooks/use-toast';
 import { ZaureLogo } from '@/components/icons/dandali-logo';
-import { Sparkles, Users, Store, Heart } from 'lucide-react';
+import { Sparkles, Users, Store, Heart, Globe } from 'lucide-react';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
@@ -22,6 +23,7 @@ export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { currentUser, loading: authLoading } = useAuth();
+  const { language, toggleLanguage } = useAppSettings();
 
   useEffect(() => {
     if (!authLoading && currentUser) {
@@ -34,7 +36,10 @@ export default function SignupPage() {
     setIsLoading(true);
     try {
       await signUp(email, password, name);
-      toast({ title: "Barka da zuwa Zaure Connect!", description: "Welcome to Zaure Connect!" });
+      toast({
+        title: language === "ha" ? "Barka da zuwa Zaure Connect!" : "Welcome to Zaure Connect!",
+        description: "Your account has been created.",
+      });
       router.replace('/');
     } catch (error: any) {
       console.error('Signup failed:', error);
@@ -56,15 +61,30 @@ export default function SignupPage() {
       <Card className="w-full max-w-md shadow-2xl rounded-3xl border border-border/80 bg-card/95 backdrop-blur-xl relative z-10 overflow-hidden">
         <div className="h-2 w-full bg-gradient-to-r from-primary via-amber-500 to-secondary" />
 
-        <CardHeader className="space-y-2 text-center pb-4 pt-6">
+        <div className="flex justify-end px-4 pt-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={toggleLanguage}
+            className="h-7 px-2.5 rounded-xl text-[11px] font-bold gap-1 text-muted-foreground hover:text-foreground"
+          >
+            <Globe className="w-3.5 h-3.5 text-primary" />
+            <span>{language === "ha" ? "English" : "Language: EN"}</span>
+          </Button>
+        </div>
+
+        <CardHeader className="space-y-2 text-center pb-4 pt-1">
           <div className="flex justify-center mb-2">
             <ZaureLogo size="lg" />
           </div>
           <CardTitle className="text-2xl font-black tracking-tight text-foreground">
-            Bude Sabon Asusu
+            {language === "ha" ? "Bude Sabon Asusu" : "Create New Account"}
           </CardTitle>
           <CardDescription className="text-xs sm:text-sm">
-            Join the premier social network connecting the Hausa and African communities.
+            {language === "ha"
+              ? "Shiga babban dandalin sada zumunci da kasuwanci na Afirka."
+              : "Join the premier social network connecting African communities."}
           </CardDescription>
         </CardHeader>
 
@@ -72,7 +92,7 @@ export default function SignupPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="name" className="text-xs font-bold text-foreground">
-                Sunanka (Full Name)
+                {language === "ha" ? "Sunanka" : "Full Name"}
               </Label>
               <Input
                 id="name"
@@ -123,7 +143,7 @@ export default function SignupPage() {
               className="w-full h-11 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all text-sm mt-2"
               disabled={isLoading}
             >
-              {isLoading ? 'Creating Account...' : 'Yi Rajista (Create Account)'}
+              {isLoading ? 'Creating Account...' : language === "ha" ? 'Yi Rajista' : 'Create Account'}
             </Button>
           </form>
 
@@ -134,7 +154,7 @@ export default function SignupPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-card px-2 text-muted-foreground font-semibold">
-                Ko kuma (Or)
+                {language === "ha" ? "Ko kuma" : "Or"}
               </span>
             </div>
           </div>
@@ -150,7 +170,10 @@ export default function SignupPage() {
               try {
                 const { signInWithGoogle } = await import('@/lib/firebase/auth');
                 await signInWithGoogle();
-                toast({ title: "Barka da zuwa!", description: "Signed in with Google successfully." });
+                toast({
+                  title: language === "ha" ? "Barka da zuwa!" : "Welcome!",
+                  description: "Signed in with Google successfully.",
+                });
                 router.replace('/');
               } catch (err: any) {
                 console.error("Google sign-up failed:", err);
@@ -181,31 +204,37 @@ export default function SignupPage() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
-            <span>Yi Rajista da Google (Sign up with Google)</span>
+            <span>{language === "ha" ? "Yi Rajista da Google" : "Sign up with Google"}</span>
           </Button>
 
           {/* Value Props */}
           <div className="grid grid-cols-3 gap-2 mt-5 text-center">
             <div className="p-2 rounded-xl bg-muted/60">
               <Users className="w-4 h-4 text-primary mx-auto mb-1" />
-              <span className="text-[10px] font-bold block text-foreground">Community</span>
+              <span className="text-[10px] font-bold block text-foreground">
+                {language === "ha" ? "Al'umma" : "Community"}
+              </span>
             </div>
             <div className="p-2 rounded-xl bg-muted/60">
               <Store className="w-4 h-4 text-secondary mx-auto mb-1" />
-              <span className="text-[10px] font-bold block text-foreground">Kasuwa</span>
+              <span className="text-[10px] font-bold block text-foreground">
+                {language === "ha" ? "Kasuwa" : "Marketplace"}
+              </span>
             </div>
             <div className="p-2 rounded-xl bg-muted/60">
               <Heart className="w-4 h-4 text-red-500 mx-auto mb-1" />
-              <span className="text-[10px] font-bold block text-foreground">Kauna</span>
+              <span className="text-[10px] font-bold block text-foreground">
+                {language === "ha" ? "Kauna" : "Culture"}
+              </span>
             </div>
           </div>
         </CardContent>
 
         <CardFooter className="flex flex-col items-center space-y-2 pb-6 pt-2 bg-muted/20 border-t border-border/40">
           <p className="text-xs text-muted-foreground">
-            Kuna da asusu tuni? (Already have an account?){' '}
+            {language === "ha" ? "Kuna da asusu tuni?" : "Already have an account?"}{' '}
             <Button variant="link" asChild className="p-0 h-auto text-primary font-bold text-xs hover:underline">
-              <Link href="/login">Shiga (Log in)</Link>
+              <Link href="/login">{language === "ha" ? "Shiga" : "Log in"}</Link>
             </Button>
           </p>
         </CardFooter>

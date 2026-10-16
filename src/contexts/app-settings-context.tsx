@@ -47,17 +47,17 @@ const translations: Translations = {
   addStory: { en: "Your Moment", ha: "Lokacinka" },
 
   // Cultural Reactions
-  like: { en: "Kauna (Love)", ha: "Ƙauna" },
-  cheer: { en: "Madalla (Bravo)", ha: "Madalla" },
-  fire: { en: "Wuta (Hot/Lit)", ha: "Wuta" },
-  laugh: { en: "Dariya (Haha)", ha: "Dariya" },
-  bless: { en: "Alheri (Grace)", ha: "Alheri" },
+  like: { en: "Love", ha: "Ƙauna" },
+  cheer: { en: "Bravo", ha: "Madalla" },
+  fire: { en: "Hot / Lit", ha: "Wuta" },
+  laugh: { en: "Haha", ha: "Dariya" },
+  bless: { en: "Blessing", ha: "Alheri" },
   comment: { en: "Comment", ha: "Sharhi" },
   share: { en: "Share", ha: "Raba" },
   writeComment: { en: "Write a comment...", ha: "Rubuta ra'ayinka..." },
 
   // Marketplace
-  kasuwaTitle: { en: "Zaure Kasuwa", ha: "Kasuwar Zaure" },
+  kasuwaTitle: { en: "Zaure Marketplace", ha: "Kasuwar Zaure" },
   kasuwaSubtitle: {
     en: "Buy, sell, and trade safely with local community members across Africa.",
     ha: "Saya, sayar, da ciniki cikin aminci da mutanen garinku a fadin Afirka.",
@@ -73,7 +73,7 @@ const translations: Translations = {
 
   // Search
   searchPlaceholder: {
-    en: "Search Zaure for people, posts, or kasuwa items...",
+    en: "Search Zaure for people, posts, or marketplace items...",
     ha: "Nemo mutane, labarai, ko kayan kasuwa a Zaure...",
   },
 };

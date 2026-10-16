@@ -40,7 +40,7 @@ export const sendDirectMessage = async (
   const senderAvatar = currentUser.photoURL || 'https://placehold.co/100x100.png';
 
   const summaryText = text.trim()
-    || (media?.imageUrl ? "📷 Hoto (Photo)" : "🎙️ Sakon Murya (Voice Note)");
+    || (media?.imageUrl ? "📷 Photo" : "🎙️ Voice Note");
 
   // 1. Update or create the parent conversation document
   await setDoc(conversationRef, {
@@ -85,7 +85,7 @@ export const sendDirectMessage = async (
     await createNotification(
       recipient.uid,
       'message',
-      `Ya aiko maka da sabon sako: "${summaryText.slice(0, 45)}${summaryText.length > 45 ? '...' : ''}"`,
+      `sent you a message: "${summaryText.slice(0, 45)}${summaryText.length > 45 ? '...' : ''}"`,
       '/messages'
     );
   } catch (notifErr) {

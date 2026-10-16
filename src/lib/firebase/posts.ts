@@ -115,7 +115,7 @@ export const createPost = async (postData: CreatePostData): Promise<string> => {
             createNotification(
               followerUid,
               'like', // badge icon
-              `@${postData.authorUsername} ya wallafa sabon sako (posted a new update)`,
+              `posted a new update`,
               `/${postData.authorUsername}`
             ).catch(() => {});
           }
@@ -268,7 +268,7 @@ export const toggleLikePost = async (postId: string, userId: string): Promise<{ 
         createNotification(
           postData.authorUid,
           'like',
-          `Ya nuna sha'awa a kan sakonka (liked your post)`,
+          `liked your post`,
           `/${postData.authorUsername || postData.authorUid}`
         ).catch(() => {});
       }
@@ -344,7 +344,7 @@ export const addCommentToPost = async (
             await createNotification(
               postData.authorUid,
               'comment',
-              `@${commentData.authorUsername} ya yi sharhi a sakonka: "${commentData.content.trim().slice(0, 40)}"`,
+              `commented on your post: "${commentData.content.trim().slice(0, 40)}"`,
               `/${postData.authorUsername || postData.authorUid}`
             );
           }

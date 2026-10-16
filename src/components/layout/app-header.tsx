@@ -61,11 +61,11 @@ export function AppHeader() {
               variant="outline"
               size="sm"
               onClick={toggleLanguage}
-              title={language === "en" ? "Canja zuwa Hausa" : "Switch to English"}
+              title={language === "en" ? "Language: English (Click to switch)" : "Yare: Hausa (Danna don canjawa)"}
               className="h-8 px-2 sm:px-2.5 rounded-xl border-border bg-card/50 text-[11px] sm:text-xs font-bold gap-1 text-foreground hover:bg-primary/10 hover:text-primary transition-colors"
             >
               <Globe className="w-3.5 h-3.5 text-primary" />
-              <span>{language === "en" ? "Hausa" : "English"}</span>
+              <span>{language === "en" ? "English" : "Hausa"}</span>
             </Button>
 
             <Button

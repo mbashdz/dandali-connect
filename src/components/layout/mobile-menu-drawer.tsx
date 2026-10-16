@@ -278,7 +278,7 @@ export function MobileMenuDrawer() {
                     <span>{language === "ha" ? "Yare: Hausa" : "Language: English"}</span>
                   </span>
                   <span className="text-[11px] font-bold text-primary underline">
-                    {language === "ha" ? "Switch to EN" : "Canja zuwa HA"}
+                    {language === "ha" ? "Switch to English" : "Switch to Hausa"}
                   </span>
                 </button>
 
@@ -301,7 +301,9 @@ export function MobileMenuDrawer() {
                       dataSaver ? "bg-amber-500/20 text-amber-600" : "bg-muted text-muted-foreground"
                     }`}
                   >
-                    {dataSaver ? "Active (Kunne)" : "Off (Kashe)"}
+                    {dataSaver
+                      ? language === "ha" ? "Kunne" : "Active"
+                      : language === "ha" ? "Kashe" : "Off"}
                   </span>
                 </button>
 
