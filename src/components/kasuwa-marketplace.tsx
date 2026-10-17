@@ -18,6 +18,7 @@ import {
   Sparkles,
   Loader2,
   Camera,
+  Image as ImageIcon,
   ShieldAlert,
   Pencil,
   Trash2,
@@ -30,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getKasuwaItems, createKasuwaItem, markKasuwaItemAsSold, updateKasuwaItem, deleteKasuwaItem } from "@/lib/firebase/kasuwa";
 import { uploadFile } from "@/lib/firebase/storage";
 import { ReportDialog } from "@/components/report-dialog";
+import { CameraCaptureModal } from "@/components/camera-capture-modal";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import type { KasuwaItem } from "@/types";
 
@@ -46,6 +48,7 @@ export function KasuwaMarketplace() {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
+  const [isKasuwaCameraOpen, setIsKasuwaCameraOpen] = useState(false);
   const [reportingItem, setReportingItem] = useState<KasuwaItem | null>(null);
 
   // Seller Edit modal state
@@ -786,15 +789,28 @@ export function KasuwaMarketplace() {
                 </div>
               )}
               {itemImagePreviews.length < 4 && (
-                <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-border/80 rounded-2xl p-4 text-center cursor-pointer hover:bg-muted/40 transition-colors"
-                >
-                  <div className="flex flex-col items-center">
-                    <Camera className="w-6 h-6 text-muted-foreground mb-1" />
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {itemImagePreviews.length > 0 ? "Add more photos" : "Tap to upload product photos (up to 4)"}
-                    </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-border/80 rounded-2xl p-3.5 text-center cursor-pointer hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="flex flex-col items-center">
+                      <ImageIcon className="w-5 h-5 text-primary mb-1" />
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {language === "ha" ? "Zabi Daga Hotuna" : "Upload Gallery"}
+                      </span>
+                    </div>
+                  </div>
+                  <div
+                    onClick={() => setIsKasuwaCameraOpen(true)}
+                    className="border-2 border-dashed border-emerald-500/40 rounded-2xl p-3.5 text-center cursor-pointer hover:bg-emerald-500/10 transition-colors"
+                  >
+                    <div className="flex flex-col items-center">
+                      <Camera className="w-5 h-5 text-emerald-500 mb-1" />
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {language === "ha" ? "Dauki Hoto (Kamara)" : "Take Photo"}
+                      </span>
+                    </div>
                   </div>
                   <input
                     type="file"
@@ -832,6 +848,16 @@ export function KasuwaMarketplace() {
               </Button>
             </div>
           </form>
+
+          <CameraCaptureModal
+            isOpen={isKasuwaCameraOpen}
+            onClose={() => setIsKasuwaCameraOpen(false)}
+            onCapture={(file) => {
+              const combined = [...itemImageFiles, file].slice(0, 4);
+              setItemImageFiles(combined);
+              setItemImagePreviews(combined.map((f) => URL.createObjectURL(f)));
+            }}
+          />
         </DialogContent>
       </Dialog>
 

@@ -5,12 +5,13 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, MessageSquare, X, Image as ImageIcon, Mic, Play, Pause } from "lucide-react";
+import { Send, Loader2, MessageSquare, X, Image as ImageIcon, Camera, Mic, Play, Pause } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useAppSettings } from "@/contexts/app-settings-context";
 import { sendDirectMessage, subscribeToMessages, getConversationId } from "@/lib/firebase/messages";
 import { uploadFile } from "@/lib/firebase/storage";
 import { VoiceRecorder } from "@/components/voice-recorder";
+import { CameraCaptureModal } from "@/components/camera-capture-modal";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import type { DirectMessage, User } from "@/types";
 
@@ -32,6 +33,7 @@ export function DirectMessageDialog({
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null);
   const [activeAudioId, setActiveAudioId] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -288,6 +290,17 @@ export function DirectMessageDialog({
             type="button"
             variant="ghost"
             size="icon"
+            onClick={() => setIsCameraOpen(true)}
+            disabled={isSending}
+            className="h-9 w-9 rounded-xl text-muted-foreground hover:text-emerald-500 shrink-0"
+            title="Take Photo"
+          >
+            <Camera className="w-4 h-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => setIsRecordingVoice((prev) => !prev)}
             disabled={isSending}
             className={`h-9 w-9 rounded-xl shrink-0 ${
@@ -321,6 +334,15 @@ export function DirectMessageDialog({
             )}
           </Button>
         </form>
+
+        <CameraCaptureModal
+          isOpen={isCameraOpen}
+          onClose={() => setIsCameraOpen(false)}
+          onCapture={(file) => {
+            setSelectedImageFile(file);
+            setSelectedImagePreview(URL.createObjectURL(file));
+          }}
+        />
 
         <ImageLightbox
           isOpen={!!lightboxImage}

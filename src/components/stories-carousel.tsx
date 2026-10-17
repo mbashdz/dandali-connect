@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Plus, Sparkles, X, Loader2, Image as ImageIcon } from "lucide-react";
+import { Plus, Sparkles, X, Loader2, Image as ImageIcon, Camera } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CameraCaptureModal } from "@/components/camera-capture-modal";
 import { useAuth } from "@/contexts/auth-context";
 import { useAppSettings } from "@/contexts/app-settings-context";
 import { getActiveStories, createStory } from "@/lib/firebase/stories";
@@ -20,6 +21,7 @@ export function StoriesCarousel() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeStory, setActiveStory] = useState<Story | null>(null);
   const [isCreatingStory, setIsCreatingStory] = useState(false);
+  const [isStoryCameraOpen, setIsStoryCameraOpen] = useState(false);
   const [newStoryText, setNewStoryText] = useState("");
   const [storyImageFile, setStoryImageFile] = useState<File | null>(null);
   const [storyImagePreview, setStoryImagePreview] = useState<string | null>(null);
@@ -349,6 +351,16 @@ export function StoriesCarousel() {
                     : language === "ha" ? "Sanya Hoto" : "Add Photo"}
                 </span>
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsStoryCameraOpen(true)}
+                className="rounded-xl border-dashed border-emerald-500/50 text-xs font-bold gap-1.5 hover:bg-emerald-500/10 hover:text-emerald-600"
+              >
+                <Camera className="w-4 h-4 text-emerald-500" />
+                <span>{language === "ha" ? "Dauki Hoto" : "Take Photo"}</span>
+              </Button>
             </div>
 
             <textarea
@@ -372,6 +384,15 @@ export function StoriesCarousel() {
               </Button>
             </div>
           </div>
+
+          <CameraCaptureModal
+            isOpen={isStoryCameraOpen}
+            onClose={() => setIsStoryCameraOpen(false)}
+            onCapture={(file) => {
+              setStoryImageFile(file);
+              setStoryImagePreview(URL.createObjectURL(file));
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>

@@ -18,9 +18,10 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, Camera, Upload } from 'lucide-react';
+import { Loader2, Camera, Upload, Image as ImageIcon } from 'lucide-react';
 import { uploadFile } from '@/lib/firebase/storage';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { CameraCaptureModal } from '@/components/camera-capture-modal';
 import { useToast } from '@/hooks/use-toast';
 
 const profileFormSchema = z.object({
@@ -47,6 +48,7 @@ export const EditProfileForm: FC<EditProfileFormProps> = ({ user, onSave, onCanc
   const [currentCover, setCurrentCover] = useState(user.coverPhotoUrl || '');
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [isSelfieCameraOpen, setIsSelfieCameraOpen] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
   const coverFileRef = useRef<HTMLInputElement>(null);
 
@@ -62,20 +64,24 @@ export const EditProfileForm: FC<EditProfileFormProps> = ({ user, onSave, onCanc
     },
   });
 
+  const uploadAvatarFile = async (file: File) => {
+    if (!user.uid) return;
+    setIsUploadingPhoto(true);
+    try {
+      const url = await uploadFile(file, `avatars/${user.uid}`);
+      setCurrentAvatar(url);
+      form.setValue('avatarUrl', url);
+      toast({ title: 'Photo Uploaded', description: 'Profile photo attached. Click Save Changes to confirm.' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Upload Failed', description: err.message });
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0] && user.uid) {
-      const file = e.target.files[0];
-      setIsUploadingPhoto(true);
-      try {
-        const url = await uploadFile(file, `avatars/${user.uid}`);
-        setCurrentAvatar(url);
-        form.setValue('avatarUrl', url);
-        toast({ title: 'Photo Uploaded', description: 'Profile photo attached. Click Save Changes to confirm.' });
-      } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Upload Failed', description: err.message });
-      } finally {
-        setIsUploadingPhoto(false);
-      }
+    if (e.target.files && e.target.files[0]) {
+      await uploadAvatarFile(e.target.files[0]);
     }
   };
 
@@ -116,7 +122,7 @@ export const EditProfileForm: FC<EditProfileFormProps> = ({ user, onSave, onCanc
                 {user.name?.slice(0, 2).toUpperCase() || 'ZC'}
               </AvatarFallback>
             </Avatar>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap gap-1.5">
               <Button
                 type="button"
                 variant="outline"
@@ -125,8 +131,19 @@ export const EditProfileForm: FC<EditProfileFormProps> = ({ user, onSave, onCanc
                 onClick={() => avatarFileRef.current?.click()}
                 className="rounded-xl text-xs font-bold gap-1.5 h-8"
               >
-                {isUploadingPhoto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-                Profile Photo
+                {isUploadingPhoto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
+                Gallery Photo
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isUploadingPhoto || isUploadingCover || isSaving}
+                onClick={() => setIsSelfieCameraOpen(true)}
+                className="rounded-xl text-xs font-bold gap-1.5 h-8 border-emerald-500/40 hover:bg-emerald-500/10"
+              >
+                <Camera className="w-3.5 h-3.5 text-emerald-500" />
+                Take Selfie
               </Button>
               <Button
                 type="button"
@@ -156,6 +173,13 @@ export const EditProfileForm: FC<EditProfileFormProps> = ({ user, onSave, onCanc
             className="hidden"
           />
         </div>
+
+        <CameraCaptureModal
+          isOpen={isSelfieCameraOpen}
+          onClose={() => setIsSelfieCameraOpen(false)}
+          defaultFacingMode="user"
+          onCapture={uploadAvatarFile}
+        />
 
         <FormField
           control={form.control}

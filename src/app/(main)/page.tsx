@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { PostCard } from "@/components/post-card";
 import { StoriesCarousel } from "@/components/stories-carousel";
 import { VoiceRecorder } from "@/components/voice-recorder";
+import { CameraCaptureModal } from "@/components/camera-capture-modal";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Image as ImageIcon, Mic, Loader2, X, Sparkles, TrendingUp, Users, Play, Pause, ChevronDown } from "lucide-react";
+import { PlusCircle, Image as ImageIcon, Camera, Mic, Loader2, X, Sparkles, TrendingUp, Users, Play, Pause, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
@@ -33,6 +34,7 @@ export default function NewsFeedPage() {
   const voiceAudioPreviewRef = useRef<HTMLAudioElement | null>(null);
 
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [posts, setPosts] = useState<PostType[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
@@ -102,6 +104,12 @@ export default function NewsFeedPage() {
       setImageFiles(combined);
       setImagePreviews(combined.map((file) => URL.createObjectURL(file)));
     }
+  };
+
+  const handleCameraCapture = (file: File) => {
+    const combined = [...imageFiles, file].slice(0, 6);
+    setImageFiles(combined);
+    setImagePreviews(combined.map((f) => URL.createObjectURL(f)));
   };
 
   const removeImage = (indexToRemove: number) => {
@@ -421,28 +429,41 @@ export default function NewsFeedPage() {
                   disabled={isPosting}
                 />
 
-                <div className="flex justify-between items-center pt-2 border-t border-border/50">
-                  <div className="flex space-x-1 sm:space-x-2">
+                <div className="flex flex-wrap justify-between items-center gap-2 pt-2 border-t border-border/50">
+                  <div className="flex items-center space-x-1 sm:space-x-2">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="px-2.5 rounded-xl text-xs font-semibold hover:bg-muted text-muted-foreground hover:text-foreground"
+                      className="px-2 sm:px-2.5 rounded-xl text-xs font-semibold hover:bg-muted text-muted-foreground hover:text-foreground"
                       onClick={() => imageInputRef.current?.click()}
                       disabled={isPosting || imageFiles.length >= 6}
                     >
-                      <ImageIcon className="h-4 w-4 mr-1.5 text-primary" />
+                      <ImageIcon className="h-4 w-4 mr-1 text-primary" />
                       <span>{t("photoVideo")}{imageFiles.length > 0 ? ` (${imageFiles.length})` : ""}</span>
                     </Button>
 
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
-                      className="px-2.5 rounded-xl text-xs font-semibold hover:bg-muted text-muted-foreground hover:text-foreground"
+                      className="px-2 sm:px-2.5 rounded-xl text-xs font-semibold hover:bg-muted text-muted-foreground hover:text-foreground"
+                      onClick={() => setIsCameraOpen(true)}
+                      disabled={isPosting || imageFiles.length >= 6}
+                    >
+                      <Camera className="h-4 w-4 mr-1 text-emerald-500" />
+                      <span>{language === "ha" ? "Kamara" : "Camera"}</span>
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="px-2 sm:px-2.5 rounded-xl text-xs font-semibold hover:bg-muted text-muted-foreground hover:text-foreground"
                       onClick={() => setIsRecordingVoice(true)}
                       disabled={isPosting || isRecordingVoice}
                     >
-                      <Mic className="h-4 w-4 mr-1.5 text-amber-500" />
+                      <Mic className="h-4 w-4 mr-1 text-amber-500" />
                       <span>{t("voiceNote")}</span>
                     </Button>
                   </div>
@@ -460,6 +481,12 @@ export default function NewsFeedPage() {
                     {isPosting ? t("posting") : t("postButton")}
                   </Button>
                 </div>
+
+                <CameraCaptureModal
+                  isOpen={isCameraOpen}
+                  onClose={() => setIsCameraOpen(false)}
+                  onCapture={handleCameraCapture}
+                />
               </CardContent>
             </Card>
           )}
