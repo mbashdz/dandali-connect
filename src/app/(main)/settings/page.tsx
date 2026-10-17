@@ -17,9 +17,10 @@ import { uploadFile } from "@/lib/firebase/storage";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { User } from "@/types";
-import { Loader2, Camera, ShieldCheck, Globe, Wifi, UserCheck, FileText, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, Camera, ShieldCheck, Globe, Wifi, UserCheck, FileText, Trash2, AlertTriangle, BadgeCheck } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { VerifiedBadge } from "@/components/ui/verified-badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +44,8 @@ export default function SettingsPage() {
   const [website, setWebsite] = useState(currentUser?.website || "");
   const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatarUrl || "");
   const [hideFollowersCount, setHideFollowersCount] = useState(currentUser?.hideFollowersCount || false);
+  const [verified, setVerified] = useState(currentUser?.verified || false);
+  const [badgeType, setBadgeType] = useState<"creator" | "merchant" | "leader">(currentUser?.badgeType || "creator");
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -86,6 +89,8 @@ export default function SettingsPage() {
       setWebsite(currentUser.website || "");
       setAvatarUrl(currentUser.avatarUrl || "");
       setHideFollowersCount(currentUser.hideFollowersCount || false);
+      setVerified(!!currentUser.verified);
+      setBadgeType(currentUser.badgeType || "creator");
     }
   }, [currentUser]);
 
@@ -128,6 +133,8 @@ export default function SettingsPage() {
         website,
         avatarUrl,
         hideFollowersCount,
+        verified,
+        badgeType,
       };
       
       await updateUserProfile(currentUser.uid, updatedData);
@@ -290,6 +297,96 @@ export default function SettingsPage() {
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Zaure Verification & Trust Badge (Alamar Aminci) */}
+      <Card className="shadow-md rounded-3xl border border-primary/30 bg-gradient-to-br from-card via-primary/5 to-amber-500/5 afro-card">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg font-extrabold flex items-center gap-2">
+                <BadgeCheck className="w-5 h-5 text-primary" />
+                {language === "ha" ? "Alamar Aminci (Verification Badge)" : "Zaure Verification & Trust Badge"}
+              </CardTitle>
+              <CardDescription className="text-xs mt-1">
+                {language === "ha"
+                  ? "Nuna alamar sahihanci a kan shafinka, sakonninka, da kasuwancinka na Kasuwa."
+                  : "Display a verified badge next to your name on posts, profile, and Kasuwa marketplace items."}
+              </CardDescription>
+            </div>
+            <Switch
+              checked={verified}
+              onCheckedChange={async (val) => {
+                setVerified(val);
+                if (currentUser) {
+                  await updateUserProfile(currentUser.uid, { verified: val, badgeType });
+                  toast({
+                    title: val
+                      ? (language === "ha" ? "An Kunna Alamar Aminci! ✓" : "Verification Badge Activated! ✓")
+                      : (language === "ha" ? "An Kashe Alamar Aminci" : "Verification Badge Disabled"),
+                  });
+                }
+              }}
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {(
+              [
+                {
+                  id: "creator",
+                  titleEn: "Verified Creator",
+                  titleHa: "Mawallafi (Creator)",
+                  descEn: "For active voices & creators",
+                },
+                {
+                  id: "merchant",
+                  titleEn: "Trusted Merchant",
+                  titleHa: "Dan Kasuwa (Merchant)",
+                  descEn: "For Kasuwa sellers & traders",
+                },
+                {
+                  id: "leader",
+                  titleEn: "Community Leader",
+                  titleHa: "Jagoran Al'umma",
+                  descEn: "For elders & community leads",
+                },
+              ] as const
+            ).map((b) => {
+              const active = badgeType === b.id;
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={async () => {
+                    setBadgeType(b.id);
+                    setVerified(true);
+                    if (currentUser) {
+                      await updateUserProfile(currentUser.uid, { verified: true, badgeType: b.id });
+                      toast({
+                        title: language === "ha" ? "An sabunta Alamar Aminci!" : "Badge Updated!",
+                      });
+                    }
+                  }}
+                  className={`p-3 rounded-2xl border text-left transition-all ${
+                    active && verified
+                      ? "border-primary bg-primary/10 shadow-xs"
+                      : "border-border/70 bg-background/60 hover:bg-muted/50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-foreground">
+                      {language === "ha" ? b.titleHa : b.titleEn}
+                    </span>
+                    <VerifiedBadge type={b.id} size="md" />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">{b.descEn}</p>
+                </button>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 

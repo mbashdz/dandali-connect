@@ -6,20 +6,22 @@ import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { MessageCircle, Heart, Share2, Send, MoreHorizontal, Mic, Loader2, Sparkles, Volume2, Pencil, Trash2, Maximize2 } from "lucide-react"
+import { MessageCircle, Heart, Share2, Send, MoreHorizontal, Mic, Loader2, Sparkles, Volume2, Pencil, Trash2, Maximize2, Bookmark, Languages, BarChart3, CheckCircle2, Copy, ExternalLink } from "lucide-react"
 import { formatDistanceToNowStrict } from 'date-fns'
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Textarea } from "@/components/ui/textarea" 
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/contexts/auth-context" 
 import { useAppSettings } from "@/contexts/app-settings-context"
-import { toggleLikePost, addCommentToPost, deleteCommentFromPost, getPostComments, setCulturalReaction, updatePostContent, deletePost } from "@/lib/firebase/posts"
+import { toggleLikePost, addCommentToPost, deleteCommentFromPost, getPostComments, setCulturalReaction, updatePostContent, deletePost, voteOnPoll, toggleBookmarkPost } from "@/lib/firebase/posts"
 import { uploadFile } from "@/lib/firebase/storage"
 import { VoiceRecorder } from "@/components/voice-recorder"
 import { useToast } from "@/hooks/use-toast"
 import { CulturalReactionsPicker, CULTURAL_REACTIONS } from "@/components/cultural-reactions-picker"
 import { ReportDialog } from "@/components/report-dialog"
 import { ImageLightbox } from "@/components/ui/image-lightbox"
+import { VerifiedBadge } from "@/components/ui/verified-badge"
+import { translatePostText } from "@/lib/ai-translator"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,6 +76,17 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // AI Translation state
+  const [translatedText, setTranslatedText] = useState<string | null>(null);
+  const [translationMeta, setTranslationMeta] = useState<{ from: string; to: string } | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+
+  // Poll voting state
+  const [isVotingPoll, setIsVotingPoll] = useState(false);
+
+  // Bookmark state
+  const [isBookmarking, setIsBookmarking] = useState(false);
+
   // Voice note comment state
   const [isRecordingCommentVoice, setIsRecordingCommentVoice] = useState(false);
   const [commentVoiceBlob, setCommentVoiceBlob] = useState<Blob | null>(null);
@@ -89,6 +102,9 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
 
   const currentUserReaction = currentUser ? (post.reactions?.[currentUser.uid] || null) : null;
   const isLikedByCurrentUser = !!currentUserReaction || (currentUser ? post.likedBy?.includes(currentUser.uid) : false);
+  const isBookmarked = currentUser
+    ? (post.bookmarkedBy?.includes(currentUser.uid) || currentUser.bookmarkedPostIds?.includes(post.id) || false)
+    : false;
 
   const handleSaveEdit = async () => {
     if (!editContentText.trim() || isSavingEdit) return;
@@ -282,8 +298,120 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
     }
   };
 
+  const handleTranslatePost = async () => {
+    if (!post.content?.trim() || isTranslating) return;
+    if (translatedText) {
+      setTranslatedText(null);
+      setTranslationMeta(null);
+      return;
+    }
+    setIsTranslating(true);
+    try {
+      const res = await translatePostText(post.content);
+      setTranslatedText(res.translatedText);
+      setTranslationMeta({ from: res.detectedLang, to: res.targetLang });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: language === "ha" ? "Kuskuren Fassara" : "Translation Error",
+        description: language === "ha" ? "Ba a sami damar fassara wannan sakon ba." : "Could not translate this post right now.",
+      });
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handleVotePoll = async (optionId: string) => {
+    if (!currentUser) {
+      toast({
+        variant: "destructive",
+        title: language === "ha" ? "Shiga tukuna" : "Sign in required",
+        description: language === "ha" ? "Da fatan za a shiga don kada kuri'a." : "Please sign in to vote on this poll.",
+      });
+      return;
+    }
+    if (!post.poll || isVotingPoll) return;
+    setIsVotingPoll(true);
+    try {
+      const updatedPoll = await voteOnPoll(post.id, optionId, currentUser.uid);
+      const updated = { ...post, poll: updatedPoll };
+      setPost(updated);
+      if (onPostUpdate) onPostUpdate(updated);
+      toast({
+        title: language === "ha" ? "An kidaya kuri'arka! 📊" : "Vote recorded! 📊",
+      });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: language === "ha" ? "Kuskure" : "Could not record vote",
+        description: err.message,
+      });
+    } finally {
+      setIsVotingPoll(false);
+    }
+  };
+
+  const handleToggleBookmark = async () => {
+    if (!currentUser || isBookmarking) return;
+    setIsBookmarking(true);
+    try {
+      const nowBookmarked = await toggleBookmarkPost(post.id, currentUser.uid);
+      const currentList = post.bookmarkedBy || [];
+      const nextList = nowBookmarked
+        ? Array.from(new Set([...currentList, currentUser.uid]))
+        : currentList.filter((id) => id !== currentUser.uid);
+      const updated = { ...post, bookmarkedBy: nextList };
+      setPost(updated);
+      if (onPostUpdate) onPostUpdate(updated);
+      toast({
+        title: nowBookmarked
+          ? (language === "ha" ? "An ajiye sakon! 🔖" : "Saved to Bookmarks! 🔖")
+          : (language === "ha" ? "An cire daga ajiya" : "Removed from Bookmarks"),
+      });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not update bookmark.",
+      });
+    } finally {
+      setIsBookmarking(false);
+    }
+  };
+
+  const getShareText = () => {
+    const snippet = post.content ? `"${post.content.slice(0, 140)}${post.content.length > 140 ? "..." : ""}"` : "";
+    const pollTitle = post.poll ? `\n📊 Poll: ${post.poll.question}` : "";
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://zaureconnect.app";
+    return `🔥 ${post.authorName} (@${post.authorUsername}) on Zaure Connect:\n${snippet}${pollTitle}\n\nJoin the conversation: ${origin}/${post.authorUsername}`;
+  };
+
+  const handleShareWhatsApp = () => {
+    const text = encodeURIComponent(getShareText());
+    window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
+  };
+
+  const handleShareNative = () => {
+    const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/${post.authorUsername}` : "https://zaureconnect.app";
+    if (navigator.share) {
+      navigator.share({
+        title: `${post.authorName} on Zaure Connect`,
+        text: getShareText(),
+        url: shareUrl,
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(getShareText());
+      toast({ title: language === "ha" ? "An kwafi sakon!" : "Post link copied to clipboard!" });
+    }
+  };
+
+  const isVerifiedAuthor = !!(
+    post.authorVerified ||
+    (isAuthor && currentUser?.verified)
+  );
+
   return (
-    <Card className="w-full max-w-2xl mx-auto shadow-md hover:shadow-xl rounded-2xl overflow-hidden border border-border/80 transition-all duration-300 bg-card">
+    <Card className="w-full max-w-2xl mx-auto shadow-md hover:shadow-xl rounded-3xl overflow-hidden border border-border/80 transition-all duration-300 bg-card afro-card">
       {/* Header */}
       <CardHeader className="p-4 pb-3">
         <div className="flex items-center justify-between">
@@ -301,63 +429,199 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
             <div>
               <div className="flex items-center gap-1.5">
                 <Link href={`/${post.authorUsername}`}>
-                  <CardTitle className="text-sm sm:text-base font-bold hover:underline tracking-tight">
-                    {post.authorName}
+                  <CardTitle className="text-sm sm:text-base font-bold hover:underline tracking-tight flex items-center gap-1">
+                    <span>{post.authorName}</span>
                   </CardTitle>
                 </Link>
+                {isVerifiedAuthor && <VerifiedBadge type="creator" size="sm" />}
               </div>
               <p className="text-xs text-muted-foreground font-medium">
                 @{post.authorUsername} &middot; {timestamp}
+                {post.isEdited && <span className="ml-1 italic opacity-75">({language === "ha" ? "an gyara" : "edited"})</span>}
               </p>
             </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-foreground">
-                <MoreHorizontal className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-2xl p-1.5 w-44 shadow-lg border border-border">
-              {isAuthor && (
-                <>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setEditContentText(post.content || "");
-                      setIsEditDialogOpen(true);
-                    }}
-                    className="font-semibold cursor-pointer gap-2 rounded-xl text-xs hover:bg-muted"
-                  >
-                    <Pencil className="w-4 h-4 text-primary" />
-                    {language === "ha" ? "Gyara" : "Edit Post"}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                    className="text-destructive font-semibold cursor-pointer gap-2 rounded-xl text-xs hover:bg-destructive/10"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    {language === "ha" ? "Goge" : "Delete Post"}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-              <DropdownMenuItem
-                onClick={() => setIsReportOpen(true)}
-                className="text-muted-foreground font-semibold cursor-pointer gap-2 rounded-xl text-xs hover:text-destructive"
+          <div className="flex items-center gap-1">
+            {currentUser && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleToggleBookmark}
+                disabled={isBookmarking}
+                className={`rounded-full h-8 w-8 transition-colors ${
+                  isBookmarked
+                    ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title={language === "ha" ? "Ajiye Sakon" : "Save Post"}
               >
-                <ShieldAlert className="w-4 h-4" />
-                {language === "ha" ? "Kai Raha" : "Report Post"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <Bookmark className={`h-4 w-4 ${isBookmarked ? "fill-amber-500" : ""}`} />
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-foreground">
+                  <MoreHorizontal className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-2xl p-1.5 w-44 shadow-lg border border-border">
+                {isAuthor && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setEditContentText(post.content || "");
+                        setIsEditDialogOpen(true);
+                      }}
+                      className="font-semibold cursor-pointer gap-2 rounded-xl text-xs hover:bg-muted"
+                    >
+                      <Pencil className="w-4 h-4 text-primary" />
+                      {language === "ha" ? "Gyara" : "Edit Post"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                      className="text-destructive font-semibold cursor-pointer gap-2 rounded-xl text-xs hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {language === "ha" ? "Goge" : "Delete Post"}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem
+                  onClick={() => setIsReportOpen(true)}
+                  className="text-muted-foreground font-semibold cursor-pointer gap-2 rounded-xl text-xs hover:text-destructive"
+                >
+                  <ShieldAlert className="w-4 h-4" />
+                  {language === "ha" ? "Kai Raha" : "Report Post"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </CardHeader>
 
       {/* Content */}
       <CardContent className="px-4 pb-3 pt-0">
         {post.content && (
-          <p className="text-[15px] sm:text-base leading-relaxed whitespace-pre-wrap mb-3 text-foreground/90 font-normal">
-            {post.content}
-          </p>
+          <div className="mb-3">
+            <p className="text-[15px] sm:text-base leading-relaxed whitespace-pre-wrap text-foreground/90 font-normal">
+              {post.content}
+            </p>
+
+            {/* 1-Tap AI Post Translation Button & Output */}
+            {post.content.trim().length > 4 && (
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={handleTranslatePost}
+                  disabled={isTranslating}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary/90 hover:text-primary bg-primary/5 hover:bg-primary/10 px-2.5 py-1 rounded-full border border-primary/20 transition-all"
+                >
+                  {isTranslating ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Languages className="w-3.5 h-3.5" />
+                  )}
+                  <span>
+                    {translatedText
+                      ? (language === "ha" ? "Boye Fassara" : "Hide Translation")
+                      : (language === "ha" ? "Fassara (AI Hausa ↔ Turanci)" : "Translate (AI Hausa ↔ English)")}
+                  </span>
+                </button>
+
+                {translatedText && (
+                  <div className="mt-2 p-3 rounded-2xl bg-gradient-to-r from-primary/5 via-amber-500/5 to-emerald-500/5 border border-primary/20 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        {translationMeta?.from === "ha"
+                          ? "AI Fassara: Hausa → English"
+                          : "AI Fassara: English → Hausa"}
+                      </span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
+                      {translatedText}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Interactive Community Poll */}
+        {post.poll && post.poll.options && post.poll.options.length > 0 && (
+          <div className="my-3 p-4 rounded-2xl bg-gradient-to-br from-muted/50 via-card to-primary/5 border border-primary/25 shadow-sm">
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="p-1.5 rounded-xl bg-primary/15 text-primary">
+                <BarChart3 className="w-4 h-4" />
+              </span>
+              <div>
+                <h4 className="text-sm font-extrabold text-foreground leading-snug">
+                  {post.poll.question}
+                </h4>
+                <p className="text-[11px] text-muted-foreground font-medium">
+                  {language === "ha" ? "Kuri'ar Zaure • Danna zabinka" : "Community Poll • Tap an option to vote"}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 mt-3">
+              {(() => {
+                const totalVotes = post.poll.options.reduce((acc, opt) => acc + (opt.voterUids?.length || 0), 0);
+                const userVotedOptionId = currentUser
+                  ? post.poll.options.find(opt => opt.voterUids?.includes(currentUser.uid))?.id
+                  : undefined;
+
+                return post.poll.options.map((opt) => {
+                  const count = opt.voterUids?.length || 0;
+                  const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+                  const isSelected = userVotedOptionId === opt.id;
+
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      disabled={isVotingPoll}
+                      onClick={() => handleVotePoll(opt.id)}
+                      className={`w-full relative overflow-hidden rounded-xl border text-left transition-all duration-200 p-2.5 ${
+                        isSelected
+                          ? "border-primary bg-primary/10 shadow-xs"
+                          : "border-border/80 bg-background/70 hover:border-primary/40 hover:bg-muted/40"
+                      }`}
+                    >
+                      {/* Progress bar fill */}
+                      <div
+                        className={`absolute inset-y-0 left-0 transition-all duration-500 ${
+                          isSelected
+                            ? "bg-gradient-to-r from-primary/25 to-amber-500/20"
+                            : "bg-muted/70"
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                      <div className="relative z-10 flex items-center justify-between gap-2 text-xs sm:text-sm">
+                        <span className="font-semibold text-foreground flex items-center gap-1.5">
+                          {isSelected && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
+                          <span>{opt.text}</span>
+                        </span>
+                        <span className="font-bold text-xs text-muted-foreground shrink-0">
+                          {pct}% ({count})
+                        </span>
+                      </div>
+                    </button>
+                  );
+                });
+              })()}
+            </div>
+
+            <div className="mt-2.5 flex items-center justify-between text-[11px] text-muted-foreground font-semibold px-1">
+              <span>
+                {post.poll.options.reduce((acc, opt) => acc + (opt.voterUids?.length || 0), 0)}{" "}
+                {language === "ha" ? "kuri'u" : "total votes"}
+              </span>
+              <span>{language === "ha" ? "Zaure Ra'ayi" : "Live Results"}</span>
+            </div>
+          </div>
         )}
 
         {/* Voice Note Player */}
@@ -604,25 +868,44 @@ export function PostCard({ post: initialPost, onPostUpdate }: PostCardProps) {
             <span>{t("comment")}</span>
           </Button>
 
-          <Button
-            variant="ghost"
-            className="flex-1 rounded-xl text-muted-foreground hover:text-foreground font-semibold gap-1.5 text-xs sm:text-sm"
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({
-                  title: `${post.authorName} on Zaure Connect`,
-                  text: post.content,
-                  url: window.location.href,
-                }).catch(() => {});
-              } else {
-                navigator.clipboard.writeText(window.location.href);
-                toast({ title: "Link copied to clipboard!" });
-              }
-            }}
-          >
-            <Share2 className="h-4 w-4" />
-            <span>{t("share")}</span>
-          </Button>
+          {/* 1-Tap WhatsApp & Native Share Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="flex-1 rounded-xl text-muted-foreground hover:text-foreground font-semibold gap-1.5 text-xs sm:text-sm"
+              >
+                <Share2 className="h-4 w-4" />
+                <span>{t("share")}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-2xl p-1.5 w-52 shadow-xl border border-border">
+              <DropdownMenuItem
+                onClick={handleShareWhatsApp}
+                className="font-bold cursor-pointer gap-2.5 rounded-xl text-xs py-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+              >
+                <span className="text-base">💬</span>
+                {language === "ha" ? "Aika a WhatsApp" : "Share to WhatsApp"}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleShareNative}
+                className="font-semibold cursor-pointer gap-2.5 rounded-xl text-xs py-2 hover:bg-muted"
+              >
+                <ExternalLink className="w-4 h-4 text-primary" />
+                {language === "ha" ? "Raba ta Manhajoji..." : "More Apps (Share Sheet)"}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  navigator.clipboard.writeText(getShareText());
+                  toast({ title: language === "ha" ? "An kwafi sakon!" : "Copied to clipboard!" });
+                }}
+                className="font-semibold cursor-pointer gap-2.5 rounded-xl text-xs py-2 hover:bg-muted"
+              >
+                <Copy className="w-4 h-4 text-muted-foreground" />
+                {language === "ha" ? "Kwafi Rubutu & Link" : "Copy Text & Link"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Comments Section */}

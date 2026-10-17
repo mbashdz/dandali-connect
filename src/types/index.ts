@@ -16,7 +16,9 @@ export interface User {
   isCurrentUser?: boolean; 
   isFollowedByCurrentUser?: boolean; 
   verified?: boolean; // African creator / community leader badge
+  badgeType?: 'creator' | 'merchant' | 'leader';
   hideFollowersCount?: boolean; // Privacy setting to hide follower counts from public
+  bookmarkedPostIds?: string[];
 }
 
 export type CulturalReactionType = 'kauna' | 'madalla' | 'wuta' | 'dariya' | 'alheri';
@@ -29,18 +31,33 @@ export interface ReactionCount {
   alheri?: number;
 }
 
+export interface PollOption {
+  id: string;
+  text: string;
+  votes: number;
+}
+
+export interface PollData {
+  options: PollOption[];
+  voters?: Record<string, string>; // uid -> optionId
+  totalVotes: number;
+}
+
 export interface Post {
   id: string; // Firestore document ID
   authorUid: string; // UID of the author
   authorUsername: string; // Denormalized
   authorName: string; // Denormalized
   authorAvatarUrl: string; // Denormalized
+  authorVerified?: boolean;
   content: string;
   imageUrl?: string;
   imageUrls?: string[];
   videoUrl?: string;
   voiceNoteUrl?: string;
   voiceDuration?: number; // Duration in seconds
+  poll?: PollData;
+  bookmarkedBy?: string[]; // Array of UIDs who bookmarked this post
   likesCount: number;
   likedBy: string[]; // Array of UIDs who liked the post
   reactions?: Record<string, CulturalReactionType>; // uid -> reaction
@@ -61,6 +78,7 @@ export interface Comment {
   authorUsername: string; // Denormalized
   authorName: string; // Denormalized
   authorAvatarUrl: string; // Denormalized
+  authorVerified?: boolean;
   content: string;
   voiceNoteUrl?: string;
   timestamp: string; // ISO date string or Firebase Timestamp
@@ -93,6 +111,7 @@ export interface KasuwaItem {
   imageUrls?: string[];
   sellerUid: string;
   sellerName: string;
+  sellerVerified?: boolean;
   sellerPhone?: string;
   sellerWhatsapp?: string;
   sellerAvatarUrl: string;
@@ -122,4 +141,5 @@ export interface Conversation {
   lastSenderUid: string;
   updatedAt: string;
   unreadCount?: Record<string, number>;
+  typing?: Record<string, number>; // uid -> timestamp ms
 }

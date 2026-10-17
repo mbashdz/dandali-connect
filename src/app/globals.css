@@ -72,17 +72,54 @@ body {
 
 /* Glassmorphism and Custom African Motif Badges */
 .glass-nav {
-  background: hsl(var(--background) / 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: hsl(var(--background) / 0.86);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
 }
 
 .afro-card {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  background-image: radial-gradient(
+    circle at 100% 0%,
+    hsl(var(--primary) / 0.04) 0%,
+    transparent 45%
+  );
 }
 
 .afro-card:hover {
-  box-shadow: 0 12px 30px -10px hsl(var(--primary) / 0.12);
+  transform: translateY(-1px);
+  box-shadow:
+    0 14px 34px -10px hsl(var(--primary) / 0.14),
+    0 4px 12px -4px hsl(var(--dandali-gold) / 0.08);
+}
+
+/* Subtle Northern Nigerian / Sahel Geometric Background Pattern */
+.zaure-pattern-bg {
+  background-color: hsl(var(--background));
+  background-image:
+    radial-gradient(hsl(var(--primary) / 0.045) 1px, transparent 1px),
+    radial-gradient(hsl(var(--dandali-gold) / 0.04) 1px, hsl(var(--background)) 1px);
+  background-size: 32px 32px;
+  background-position: 0 0, 16px 16px;
+}
+
+/* Royal Zaure Header Banner Accent */
+.zaure-royal-gradient {
+  background: linear-gradient(
+    135deg,
+    hsl(15 78% 52%) 0%,
+    hsl(28 88% 50%) 50%,
+    hsl(165 75% 34%) 100%
+  );
+}
+
+.zaure-gold-pill {
+  background: linear-gradient(
+    135deg,
+    hsl(38 95% 55% / 0.16) 0%,
+    hsl(15 78% 52% / 0.12) 100%
+  );
+  border: 1px solid hsl(38 92% 50% / 0.32);
 }
 
 /* Story Carousel Scrollbar styling */
@@ -93,3 +130,4 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+

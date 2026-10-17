@@ -5,14 +5,22 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, MessageSquare, X, Image as ImageIcon, Camera, Mic, Play, Pause } from "lucide-react";
+import { Send, Loader2, MessageSquare, X, Image as ImageIcon, Camera, Mic, Play, Pause, Check, CheckCheck } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useAppSettings } from "@/contexts/app-settings-context";
-import { sendDirectMessage, subscribeToMessages, getConversationId } from "@/lib/firebase/messages";
+import {
+  sendDirectMessage,
+  subscribeToMessages,
+  getConversationId,
+  markConversationMessagesAsRead,
+  setTypingStatus,
+  subscribeToConversationDoc,
+} from "@/lib/firebase/messages";
 import { uploadFile } from "@/lib/firebase/storage";
 import { VoiceRecorder } from "@/components/voice-recorder";
 import { CameraCaptureModal } from "@/components/camera-capture-modal";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
+import { VerifiedBadge } from "@/components/ui/verified-badge";
 import type { DirectMessage, User } from "@/types";
 
 interface DirectMessageDialogProps {
@@ -38,27 +46,51 @@ export function DirectMessageDialog({
   const [activeAudioId, setActiveAudioId] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [isRecipientTyping, setIsRecipientTyping] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!isOpen || !currentUser || !recipientUser) {
       setMessages([]);
+      setIsRecipientTyping(false);
       return;
     }
 
     const conversationId = getConversationId(currentUser.uid, recipientUser.uid);
-    const unsubscribe = subscribeToMessages(conversationId, (loaded) => {
+    const unsubscribeMsgs = subscribeToMessages(conversationId, (loaded) => {
       setMessages(loaded);
+      markConversationMessagesAsRead(conversationId, currentUser.uid, loaded);
     });
 
-    return () => unsubscribe();
+    const unsubscribeConv = subscribeToConversationDoc(conversationId, (typingMap) => {
+      setIsRecipientTyping(!!typingMap[recipientUser.uid]);
+    });
+
+    return () => {
+      unsubscribeMsgs();
+      unsubscribeConv();
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      setTypingStatus(conversationId, currentUser.uid, false);
+    };
   }, [isOpen, currentUser, recipientUser]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isRecipientTyping]);
+
+  const handleTextChange = (val: string) => {
+    setNewMessageText(val);
+    if (!currentUser || !recipientUser) return;
+    const conversationId = getConversationId(currentUser.uid, recipientUser.uid);
+    setTypingStatus(conversationId, currentUser.uid, val.trim().length > 0);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      setTypingStatus(conversationId, currentUser.uid, false);
+    }, 2500);
+  };
 
   const handleImagePick = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -85,6 +117,8 @@ export function DirectMessageDialog({
         voiceNoteUrl = await uploadFile(audioFile, `dmVoiceNotes/${currentUser.uid}`);
       }
 
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
       await sendDirectMessage(recipientUser, newMessageText.trim(), {
         imageUrl,
         voiceNoteUrl,
@@ -110,17 +144,27 @@ export function DirectMessageDialog({
         {/* Header */}
         <div className="flex items-center justify-between p-4 bg-muted/40 border-b border-border/70">
           <div className="flex items-center gap-3">
-            <Avatar className="w-10 h-10 border border-primary/40">
-              <AvatarImage src={recipientUser.avatarUrl} alt={recipientUser.name} />
-              <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
-                {recipientUser.name?.slice(0, 2).toUpperCase() || "ZC"}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="w-10 h-10 border border-primary/40">
+                <AvatarImage src={recipientUser.avatarUrl} alt={recipientUser.name} />
+                <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                  {recipientUser.name?.slice(0, 2).toUpperCase() || "ZC"}
+                </AvatarFallback>
+              </Avatar>
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
+            </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground leading-tight">
-                {recipientUser.name}
+              <h3 className="text-sm font-bold text-foreground leading-tight flex items-center gap-1">
+                <span>{recipientUser.name}</span>
+                {recipientUser.verified && <VerifiedBadge type={recipientUser.badgeType || "creator"} size="sm" />}
               </h3>
-              <p className="text-[11px] text-muted-foreground">@{recipientUser.username}</p>
+              {isRecipientTyping ? (
+                <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 animate-pulse">
+                  {language === "ha" ? "Yana rubutu..." : "Typing..."}
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">@{recipientUser.username}</p>
+              )}
             </div>
           </div>
           <Button
@@ -215,21 +259,51 @@ export function DirectMessageDialog({
 
                     {msg.text && <p className="whitespace-pre-wrap">{msg.text}</p>}
 
-                    <span
-                      className={`block text-[9px] mt-1 text-right ${
-                        isMine ? "text-primary-foreground/75" : "text-muted-foreground"
+                    <div
+                      className={`flex items-center justify-end gap-1 text-[9px] mt-1 ${
+                        isMine ? "text-primary-foreground/80" : "text-muted-foreground"
                       }`}
                     >
-                      {new Date(msg.createdAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
+                      <span>
+                        {new Date(msg.createdAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      {isMine && (
+                        msg.read ? (
+                          <span className="inline-flex items-center gap-0.5 text-sky-200 font-bold" title="Seen">
+                            <CheckCheck className="w-3 h-3" />
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center opacity-75" title="Sent">
+                            <Check className="w-3 h-3" />
+                          </span>
+                        )
+                      )}
+                    </div>
                   </div>
                 </div>
               );
             })
           )}
+
+          {/* Live Typing Bubble */}
+          {isRecipientTyping && (
+            <div className="flex justify-start animate-in fade-in duration-200">
+              <div className="bg-muted text-muted-foreground border border-border/60 rounded-2xl rounded-bl-xs px-3.5 py-2 text-xs flex items-center gap-1.5">
+                <span className="flex gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:150ms]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
+                </span>
+                <span className="text-[10px] font-semibold">
+                  {recipientUser.name.split(" ")[0]} {language === "ha" ? "yana rubutu..." : "is typing..."}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
@@ -312,7 +386,7 @@ export function DirectMessageDialog({
           </Button>
           <Input
             value={newMessageText}
-            onChange={(e) => setNewMessageText(e.target.value)}
+            onChange={(e) => handleTextChange(e.target.value)}
             placeholder={
               language === "ha"
                 ? "Rubuta sakon sirri..."

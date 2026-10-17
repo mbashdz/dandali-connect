@@ -150,6 +150,7 @@ export default function MessagesInboxPage() {
             const otherData = otherUid ? convo.participantData[otherUid] : null;
             if (!otherData) return null;
             const isLastFromMe = convo.lastSenderUid === currentUser?.uid;
+            const isOtherTyping = otherUid ? !!convo.typing?.[otherUid] : false;
 
             return (
               <div
@@ -158,24 +159,33 @@ export default function MessagesInboxPage() {
                 className="p-4 flex items-center justify-between gap-3 hover:bg-muted/40 cursor-pointer transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <Avatar className="w-12 h-12 border border-primary/20 shrink-0">
-                    <AvatarImage src={otherData.avatarUrl} alt={otherData.name} />
-                    <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                      {otherData.name?.slice(0, 2).toUpperCase() || "DC"}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative shrink-0">
+                    <Avatar className="w-12 h-12 border border-primary/20">
+                      <AvatarImage src={otherData.avatarUrl} alt={otherData.name} />
+                      <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                        {otherData.name?.slice(0, 2).toUpperCase() || "DC"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-background" />
+                  </div>
                   <div className="min-w-0">
                     <h3 className="text-sm font-bold text-foreground leading-tight truncate">
                       {otherData.name}
                     </h3>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {isLastFromMe && (
-                        <span className="text-primary font-semibold">
-                          {language === "ha" ? "Ka ce: " : "You: "}
-                        </span>
-                      )}
-                      {convo.lastMessage}
-                    </p>
+                    {isOtherTyping ? (
+                      <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 animate-pulse mt-0.5">
+                        {language === "ha" ? "Yana rubutu..." : "Typing..."}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {isLastFromMe && (
+                          <span className="text-primary font-semibold">
+                            {language === "ha" ? "Ka ce: " : "You: "}
+                          </span>
+                        )}
+                        {convo.lastMessage}
+                      </p>
+                    )}
                   </div>
                 </div>
 

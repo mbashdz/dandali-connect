@@ -23,6 +23,7 @@ import {
   Pencil,
   Trash2,
   Maximize2,
+  Share2,
   X
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
@@ -33,6 +34,7 @@ import { uploadFile } from "@/lib/firebase/storage";
 import { ReportDialog } from "@/components/report-dialog";
 import { CameraCaptureModal } from "@/components/camera-capture-modal";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
+import { VerifiedBadge } from "@/components/ui/verified-badge";
 import type { KasuwaItem } from "@/types";
 
 export function KasuwaMarketplace() {
@@ -393,16 +395,17 @@ export function KasuwaMarketplace() {
               </div>
 
               <div className="p-4 pt-0 mt-2 flex items-center justify-between border-t border-border/50 pt-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={item.sellerAvatarUrl}
                     alt={item.sellerName}
-                    className="w-6 h-6 rounded-full object-cover border"
+                    className="w-6 h-6 rounded-full object-cover border shrink-0"
                   />
-                  <span className="text-[11px] font-medium text-foreground truncate max-w-[100px]">
+                  <span className="text-[11px] font-bold text-foreground truncate max-w-[95px]">
                     {item.sellerName}
                   </span>
+                  <VerifiedBadge type="merchant" size="sm" />
                 </div>
                 <Button size="sm" variant="ghost" className="h-8 px-2 text-xs font-semibold text-primary">
                   {t("contactSeller")} &rarr;
@@ -479,14 +482,35 @@ export function KasuwaMarketplace() {
                     <Badge variant="outline" className="text-xs capitalize font-semibold">
                       {selectedItem.category}
                     </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setReportingItem(selectedItem)}
-                      className="text-xs text-destructive hover:bg-destructive/10 h-7 px-2 rounded-lg gap-1"
-                    >
-                      <ShieldAlert className="w-3.5 h-3.5" /> Report
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const shareMsg = `🛍️ ${selectedItem.title} (${formatCurrency(selectedItem.price, selectedItem.currency)}) in ${selectedItem.location} on Zaure Kasuwa!\n\n${selectedItem.description}\n\nCheck it out on Zaure Connect: ${window.location.origin}/kasuwa`;
+                          if (navigator.share) {
+                            navigator.share({
+                              title: selectedItem.title,
+                              text: shareMsg,
+                              url: `${window.location.origin}/kasuwa`,
+                            }).catch(() => {});
+                          } else {
+                            window.open(`https://wa.me/?text=${encodeURIComponent(shareMsg)}`, "_blank", "noopener,noreferrer");
+                          }
+                        }}
+                        className="text-xs text-primary hover:bg-primary/10 h-7 px-2 rounded-lg gap-1 font-bold"
+                      >
+                        <Share2 className="w-3.5 h-3.5" /> {language === "ha" ? "Raba" : "Share"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setReportingItem(selectedItem)}
+                        className="text-xs text-destructive hover:bg-destructive/10 h-7 px-2 rounded-lg gap-1"
+                      >
+                        <ShieldAlert className="w-3.5 h-3.5" /> Report
+                      </Button>
+                    </div>
                   </div>
 
                   <h2 className="text-xl font-bold tracking-tight mb-2 text-foreground">
@@ -552,7 +576,7 @@ export function KasuwaMarketplace() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-3 p-3 bg-muted/60 rounded-2xl">
+                  <div className="flex items-center gap-3 p-3 bg-muted/60 rounded-2xl border border-border/50">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={selectedItem.sellerAvatarUrl}
@@ -560,8 +584,11 @@ export function KasuwaMarketplace() {
                       className="w-10 h-10 rounded-full object-cover border"
                     />
                     <div>
-                      <p className="text-xs font-bold text-foreground">{selectedItem.sellerName}</p>
-                      <p className="text-[11px] text-muted-foreground">Verified Zaure Seller</p>
+                      <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <span>{selectedItem.sellerName}</span>
+                        <VerifiedBadge type="merchant" size="sm" showLabel />
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">Verified Zaure Merchant</p>
                     </div>
                   </div>
 

@@ -5,6 +5,7 @@ import {
   doc,
   addDoc,
   setDoc,
+  updateDoc,
   getDoc,
   getDocs,
   query,
@@ -13,7 +14,8 @@ import {
   limit,
   serverTimestamp,
   Timestamp,
-  onSnapshot
+  onSnapshot,
+  writeBatch
 } from 'firebase/firestore';
 import { createNotification } from './notifications';
 import type { DirectMessage, Conversation, User } from '@/types';
@@ -58,6 +60,9 @@ export const sendDirectMessage = async (
         avatarUrl: recipient.avatarUrl || 'https://placehold.co/100x100.png',
       }
     },
+    typing: {
+      [currentUser.uid]: false,
+    },
     lastMessage: summaryText,
     lastSenderUid: currentUser.uid,
     updatedAt: serverTimestamp(),
@@ -95,6 +100,56 @@ export const sendDirectMessage = async (
   return messageDoc.id;
 };
 
+export const setTypingStatus = async (conversationId: string, userId: string, isTyping: boolean): Promise<void> => {
+  try {
+    const convRef = doc(db, 'conversations', conversationId);
+    await setDoc(convRef, {
+      typing: {
+        [userId]: isTyping
+      }
+    }, { merge: true });
+  } catch (err) {
+    // Non-blocking typing status update
+  }
+};
+
+export const markConversationMessagesAsRead = async (
+  conversationId: string,
+  currentUserId: string,
+  messages: DirectMessage[]
+): Promise<void> => {
+  try {
+    const unreadFromOther = messages.filter(m => m.recipientUid === currentUserId && !m.read);
+    if (unreadFromOther.length === 0) return;
+
+    const batch = writeBatch(db);
+    unreadFromOther.forEach(msg => {
+      const msgRef = doc(db, 'conversations', conversationId, 'messages', msg.id);
+      batch.update(msgRef, { read: true });
+    });
+    await batch.commit();
+  } catch (err) {
+    // Non-blocking read receipt update
+  }
+};
+
+export const subscribeToConversationDoc = (
+  conversationId: string,
+  onUpdate: (typingMap: Record<string, boolean>) => void
+) => {
+  const convRef = doc(db, 'conversations', conversationId);
+  return onSnapshot(convRef, (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+      onUpdate(data.typing || {});
+    } else {
+      onUpdate({});
+    }
+  }, () => {
+    onUpdate({});
+  });
+};
+
 export const subscribeToConversations = (
   userId: string,
   onUpdate: (conversations: Conversation[]) => void,
@@ -117,6 +172,7 @@ export const subscribeToConversations = (
         lastMessage: data.lastMessage || '',
         lastSenderUid: data.lastSenderUid || '',
         updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : new Date().toISOString(),
+        typing: data.typing || {},
       });
     });
 
@@ -163,4 +219,5 @@ export const subscribeToMessages = (
     console.error("[subscribeToMessages] Error:", err);
   });
 };
+
 

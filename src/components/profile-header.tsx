@@ -8,9 +8,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit3, UserPlus, Check, MapPin, Link2, MessageSquare, Users, Loader2 } from "lucide-react"
+import { Edit3, UserPlus, Check, MapPin, Link2, MessageSquare, Users, Loader2, Share2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { DirectMessageDialog } from "@/components/direct-message-dialog"
+import { VerifiedBadge } from "@/components/ui/verified-badge"
 import { useAuth } from "@/contexts/auth-context"
 import { useAppSettings } from "@/contexts/app-settings-context"
 import { useToast } from "@/hooks/use-toast"
@@ -114,10 +115,25 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
     }
   };
 
+  const handleShareProfile = () => {
+    const profileUrl = typeof window !== "undefined" ? `${window.location.origin}/${user.username}` : `https://zaureconnect.app/${user.username}`;
+    const text = `Check out ${user.name} (@${user.username}) on Zaure Connect! ${profileUrl}`;
+    if (navigator.share) {
+      navigator.share({
+        title: `${user.name} on Zaure Connect`,
+        text,
+        url: profileUrl,
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(profileUrl);
+      toast({ title: language === "ha" ? "An kwafi adireshin shafi!" : "Profile link copied to clipboard!" });
+    }
+  };
+
   const displayFollowersCount = followersCountState;
 
   return (
-    <Card className="w-full overflow-hidden shadow-lg rounded-xl mb-6">
+    <Card className="w-full overflow-hidden shadow-lg rounded-3xl mb-6 border border-border/80 afro-card">
       <div className="relative h-48 md:h-64 bg-muted">
         {user.coverPhotoUrl ? (
           <Image
@@ -130,27 +146,30 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
             priority
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-r from-primary to-secondary" data-ai-hint="abstract gradient"></div>
+          <div className="w-full h-full zaure-royal-gradient" data-ai-hint="abstract gradient"></div>
         )}
       </div>
-      <CardContent className="p-4 pt-0">
+      <CardContent className="p-5 pt-0">
         <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-16 sm:-mt-20 space-y-4 sm:space-y-0 sm:space-x-4 relative">
-          <Avatar className="h-32 w-32 md:h-36 md:w-36 border-4 border-background rounded-full shadow-md">
+          <Avatar className="h-32 w-32 md:h-36 md:w-36 border-4 border-background rounded-full shadow-lg">
             <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="user avatar portrait" />
-            <AvatarFallback className="text-4xl">{getInitials(user.name)}</AvatarFallback>
+            <AvatarFallback className="text-4xl font-bold bg-primary/10 text-primary">{getInitials(user.name)}</AvatarFallback>
           </Avatar>
           <div className="flex-grow text-center sm:text-left pt-4 sm:pt-0">
-            <h1 className="text-2xl md:text-3xl font-bold">{user.name}</h1>
-            <p className="text-sm text-muted-foreground">@{user.username}</p>
+            <h1 className="text-2xl md:text-3xl font-extrabold flex items-center justify-center sm:justify-start gap-1.5">
+              <span>{user.name}</span>
+              {user.verified && <VerifiedBadge type={user.badgeType || "creator"} size="md" showLabel />}
+            </h1>
+            <p className="text-sm text-muted-foreground font-medium">@{user.username}</p>
           </div>
           <div className="sm:ml-auto pt-2 sm:pt-0 flex items-center gap-2">
             {user.isCurrentUser && onEditProfile ? (
-              <Button variant="outline" onClick={onEditProfile} className="rounded-xl">
+              <Button variant="outline" onClick={onEditProfile} className="rounded-xl font-bold">
                 <Edit3 className="mr-2 h-4 w-4" /> Edit Profile
               </Button>
             ) : !user.isCurrentUser ? (
               <>
-                <Button onClick={handleFollowToggle} variant={isFollowing ? "secondary" : "default"} className="rounded-xl">
+                <Button onClick={handleFollowToggle} variant={isFollowing ? "secondary" : "default"} className="rounded-xl font-bold">
                   {isFollowing ? (
                     <>
                       <Check className="mr-2 h-4 w-4" /> Following
@@ -164,13 +183,22 @@ export function ProfileHeader({ user, onEditProfile }: ProfileHeaderProps) {
                 <Button
                   variant="outline"
                   onClick={() => setIsMessageOpen(true)}
-                  className="rounded-xl border-primary/40 text-primary hover:bg-primary/10 gap-1.5"
+                  className="rounded-xl border-primary/40 text-primary hover:bg-primary/10 gap-1.5 font-bold"
                 >
                   <MessageSquare className="h-4 w-4" />
                   <span>{language === "ha" ? "Sako" : "Message"}</span>
                 </Button>
               </>
             ) : null}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleShareProfile}
+              className="rounded-xl border border-border/70 text-muted-foreground hover:text-foreground"
+              title="Share Profile"
+            >
+              <Share2 className="h-4 w-4" />
+            </Button>
           </div>
         </div>
         

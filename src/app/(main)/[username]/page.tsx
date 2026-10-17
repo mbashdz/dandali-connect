@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { updateUserProfile, getUserProfileByUsername, checkIsFollowing } from '@/lib/firebase/users'; 
 import { getUserPosts, getGlobalPosts } from '@/lib/firebase/posts';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Image as ImageIcon, Heart } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Heart, Bookmark } from 'lucide-react';
 
 export default function UserProfilePage() {
   const params = useParams();
@@ -25,6 +25,7 @@ export default function UserProfilePage() {
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [userPosts, setUserPosts] = useState<PostType[]>([]);
   const [likedPosts, setLikedPosts] = useState<PostType[]>([]);
+  const [savedPosts, setSavedPosts] = useState<PostType[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -68,11 +69,20 @@ export default function UserProfilePage() {
               (p.reactions && !!p.reactions[userData.uid])
           );
           setLikedPosts(userLiked);
+
+          // Filter posts bookmarked/saved by this profile user
+          const userSaved = globalResult.posts.filter(
+            (p) =>
+              p.bookmarkedBy?.includes(userData.uid) ||
+              userData.bookmarkedPostIds?.includes(p.id)
+          );
+          setSavedPosts(userSaved);
         }
       } else {
         setProfileUser(null);
         setUserPosts([]);
         setLikedPosts([]);
+        setSavedPosts([]);
       }
     } catch (error: any) {
       console.error("[UserProfilePage] Error fetching user profile or posts:", error.message, error.code, error);
@@ -117,9 +127,11 @@ export default function UserProfilePage() {
     if (updatedPost._deleted) {
       setUserPosts((prevPosts) => prevPosts.filter((p) => p.id !== updatedPost.id));
       setLikedPosts((prevPosts) => prevPosts.filter((p) => p.id !== updatedPost.id));
+      setSavedPosts((prevPosts) => prevPosts.filter((p) => p.id !== updatedPost.id));
     } else {
       setUserPosts((prevPosts) => prevPosts.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
       setLikedPosts((prevPosts) => prevPosts.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+      setSavedPosts((prevPosts) => prevPosts.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
     }
   };
 
@@ -156,16 +168,22 @@ export default function UserProfilePage() {
       />
       
       <Tabs defaultValue="posts" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-4 rounded-2xl">
-          <TabsTrigger value="posts" className="rounded-xl">
+        <TabsList className={`grid w-full ${profileUser.isCurrentUser ? 'grid-cols-4' : 'grid-cols-3'} mb-4 rounded-2xl`}>
+          <TabsTrigger value="posts" className="rounded-xl text-xs sm:text-sm">
             Posts ({userPosts.length})
           </TabsTrigger>
-          <TabsTrigger value="media" className="rounded-xl">
+          <TabsTrigger value="media" className="rounded-xl text-xs sm:text-sm">
             Media ({mediaPosts.length})
           </TabsTrigger>
-          <TabsTrigger value="likes" className="rounded-xl">
+          <TabsTrigger value="likes" className="rounded-xl text-xs sm:text-sm">
             Likes ({likedPosts.length})
           </TabsTrigger>
+          {profileUser.isCurrentUser && (
+            <TabsTrigger value="saved" className="rounded-xl text-xs sm:text-sm gap-1">
+              <Bookmark className="w-3.5 h-3.5 text-amber-500" />
+              Saved ({savedPosts.length})
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="posts">
@@ -243,6 +261,25 @@ export default function UserProfilePage() {
             </div>
           )}
         </TabsContent>
+
+        {profileUser.isCurrentUser && (
+          <TabsContent value="saved">
+            {savedPosts.length > 0 ? (
+              <div className="space-y-6">
+                {savedPosts.map((post) => (
+                  <PostCard key={post.id} post={post} onPostUpdate={handlePostUpdateInList} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-card rounded-2xl border border-dashed">
+                <Bookmark className="w-8 h-8 text-amber-500/40 mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">
+                  Tap the bookmark icon on any post to save it here for later reading.
+                </p>
+              </div>
+            )}
+          </TabsContent>
+        )}
       </Tabs>
 
       {allUserPhotos.length > 0 && (

@@ -3,14 +3,16 @@
 import React, { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Plus, Sparkles, X, Loader2, Image as ImageIcon, Camera } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, Sparkles, X, Loader2, Image as ImageIcon, Camera, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CameraCaptureModal } from "@/components/camera-capture-modal";
 import { useAuth } from "@/contexts/auth-context";
 import { useAppSettings } from "@/contexts/app-settings-context";
 import { getActiveStories, createStory } from "@/lib/firebase/stories";
+import { sendDirectMessage } from "@/lib/firebase/messages";
 import { uploadFile } from "@/lib/firebase/storage";
-import type { Story } from "@/types";
+import type { Story, User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 
 export function StoriesCarousel() {
@@ -27,7 +29,50 @@ export function StoriesCarousel() {
   const [storyImagePreview, setStoryImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedBg, setSelectedBg] = useState("from-orange-600 to-amber-700");
+  const [storyReplyText, setStoryReplyText] = useState("");
+  const [isSendingReply, setIsSendingReply] = useState(false);
   const storyImageInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleSendStoryReactionOrReply = async (textToSend: string) => {
+    if (!currentUser || !activeStory || !textToSend.trim() || isSendingReply) return;
+    if (activeStory.authorUid === currentUser.uid) {
+      toast({
+        title: language === "ha" ? "Wannan naka ne!" : "Your Moment",
+        description: language === "ha" ? "Mabiyan ka za su iya maida martani a nan." : "Your followers can send reactions and replies here.",
+      });
+      return;
+    }
+
+    setIsSendingReply(true);
+    try {
+      const recipient: User = {
+        id: activeStory.authorUid,
+        uid: activeStory.authorUid,
+        username: activeStory.authorUsername,
+        name: activeStory.authorName,
+        avatarUrl: activeStory.authorAvatarUrl,
+      };
+      const storyPreview = activeStory.text ? `"${activeStory.text.slice(0, 35)}"` : "24h Moment";
+      await sendDirectMessage(
+        recipient,
+        `✨ Replied to your Moment (${storyPreview}): ${textToSend.trim()}`,
+        activeStory.mediaUrl ? { imageUrl: activeStory.mediaUrl } : undefined
+      );
+      setStoryReplyText("");
+      toast({
+        title: language === "ha" ? "An aika martani! 💬" : "Sent to Direct Messages! 💬",
+        description: `${language === "ha" ? "An tura wa" : "Delivered to"} ${activeStory.authorName}`,
+      });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message || "Could not send story reply.",
+      });
+    } finally {
+      setIsSendingReply(false);
+    }
+  };
 
   const colorOptions = [
     "from-orange-600 to-amber-700",
@@ -114,14 +159,16 @@ export function StoriesCarousel() {
   };
 
   return (
-    <div className="w-full mb-6">
+    <div className="w-full mb-5">
       {/* Header */}
       <div className="flex items-center justify-between px-1 mb-3">
-        <h3 className="text-sm font-semibold tracking-wide text-foreground/80 flex items-center gap-1.5">
+        <h3 className="text-sm font-bold tracking-wide text-foreground/90 flex items-center gap-1.5">
           <Sparkles className="w-4 h-4 text-primary" />
           {t("storiesTitle")}
         </h3>
-        <span className="text-xs text-muted-foreground font-medium">24h Status</span>
+        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full zaure-gold-pill text-amber-700 dark:text-amber-300">
+          24h Zaure Moments
+        </span>
       </div>
 
       {/* Stories list */}
@@ -129,9 +176,9 @@ export function StoriesCarousel() {
         {/* Current user 'Add Story' card */}
         <div
           onClick={() => setIsCreatingStory(true)}
-          className="relative flex-shrink-0 w-28 h-44 rounded-2xl overflow-hidden border border-border/80 bg-card cursor-pointer group shadow-sm hover:shadow-md transition-all duration-200"
+          className="relative flex-shrink-0 w-28 h-44 rounded-2xl overflow-hidden border border-border/80 bg-card cursor-pointer group shadow-sm hover:shadow-md transition-all duration-200 afro-card"
         >
-          <div className="h-28 w-full bg-gradient-to-br from-primary/15 to-secondary/25 flex items-center justify-center relative">
+          <div className="h-28 w-full bg-gradient-to-br from-primary/20 via-amber-500/15 to-emerald-500/20 flex items-center justify-center relative">
             <Avatar className="w-12 h-12 border-2 border-background shadow-md">
               <AvatarImage src={currentUser?.avatarUrl} alt="Your profile" />
               <AvatarFallback className="bg-primary text-primary-foreground font-bold">
@@ -143,7 +190,7 @@ export function StoriesCarousel() {
             <Plus className="w-5 h-5" />
           </div>
           <div className="absolute bottom-2 inset-x-0 text-center px-1">
-            <span className="text-xs font-semibold block truncate">{t("addStory")}</span>
+            <span className="text-xs font-bold block truncate">{t("addStory")}</span>
           </div>
         </div>
 
@@ -160,6 +207,7 @@ export function StoriesCarousel() {
               key={story.id}
               onClick={() => {
                 setActiveStory(story);
+                setStoryReplyText("");
                 setStories((prev) =>
                   prev.map((s) => (s.id === story.id ? { ...s, viewed: true } : s))
                 );
@@ -215,36 +263,38 @@ export function StoriesCarousel() {
         )}
       </div>
 
-      {/* Story View Modal */}
+      {/* Story View Modal with Quick Reactions & Direct Reply */}
       {activeStory && (
         <Dialog open={!!activeStory} onOpenChange={() => setActiveStory(null)}>
           <DialogContent className="max-w-md p-0 overflow-hidden bg-black text-white border-zinc-800 rounded-3xl">
             <div className="relative aspect-[9/16] w-full flex flex-col justify-between p-4">
-              {/* Progress bar */}
-              <div className="w-full h-1 bg-white/30 rounded-full overflow-hidden mb-3">
-                <div className="h-full bg-white animate-pulse w-full duration-1000" />
-              </div>
-
-              {/* Story Header */}
-              <div className="flex items-center justify-between z-20">
-                <div className="flex items-center gap-2">
-                  <Avatar className="w-9 h-9 border border-white">
-                    <AvatarImage src={activeStory.authorAvatarUrl} />
-                    <AvatarFallback>{activeStory.authorName?.slice(0, 2) || "DC"}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h4 className="text-sm font-bold text-white">{activeStory.authorName}</h4>
-                    <p className="text-[11px] text-zinc-300">@{activeStory.authorUsername} &middot; Moments</p>
-                  </div>
+              <div>
+                {/* Progress bar */}
+                <div className="w-full h-1 bg-white/30 rounded-full overflow-hidden mb-3">
+                  <div className="h-full bg-white animate-pulse w-full duration-1000" />
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-white hover:bg-white/20 rounded-full"
-                  onClick={() => setActiveStory(null)}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
+
+                {/* Story Header */}
+                <div className="flex items-center justify-between z-20 relative">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="w-9 h-9 border border-white">
+                      <AvatarImage src={activeStory.authorAvatarUrl} />
+                      <AvatarFallback>{activeStory.authorName?.slice(0, 2) || "DC"}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h4 className="text-sm font-bold text-white">{activeStory.authorName}</h4>
+                      <p className="text-[11px] text-zinc-300">@{activeStory.authorUsername} &middot; Moments</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white hover:bg-white/20 rounded-full"
+                    onClick={() => setActiveStory(null)}
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
 
               {/* Story Content Background */}
@@ -265,12 +315,69 @@ export function StoriesCarousel() {
                 </div>
               )}
 
-              {/* Story Text overlay if image present */}
-              {activeStory.mediaUrl && activeStory.text && (
-                <div className="bg-black/60 backdrop-blur-md p-3.5 rounded-2xl mb-2 text-sm z-20">
-                  {activeStory.text}
-                </div>
-              )}
+              {/* Bottom: Story Text overlay + Quick Reactions & Reply Bar */}
+              <div className="z-20 space-y-2.5">
+                {activeStory.mediaUrl && activeStory.text && (
+                  <div className="bg-black/65 backdrop-blur-md p-3 rounded-2xl text-sm text-center">
+                    {activeStory.text}
+                  </div>
+                )}
+
+                {currentUser && (
+                  <div className="bg-black/70 backdrop-blur-lg border border-white/15 rounded-2xl p-2.5 space-y-2">
+                    {/* Quick Cultural Emoji Reactions */}
+                    <div className="flex items-center justify-around">
+                      {[
+                        { emoji: "🔥", label: "Wuta!" },
+                        { emoji: "❤️", label: "Kauna!" },
+                        { emoji: "👏", label: "Girma!" },
+                        { emoji: "😍", label: "Madalla!" },
+                        { emoji: "🤲", label: "Albarka!" },
+                      ].map((item) => (
+                        <button
+                          key={item.emoji}
+                          type="button"
+                          disabled={isSendingReply}
+                          onClick={() => handleSendStoryReactionOrReply(`${item.emoji} ${item.label}`)}
+                          className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl hover:bg-white/15 active:scale-125 transition-all"
+                        >
+                          <span className="text-lg">{item.emoji}</span>
+                          <span className="text-[9px] text-zinc-300 font-semibold">{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Direct Message Reply Input */}
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSendStoryReactionOrReply(storyReplyText);
+                      }}
+                      className="flex items-center gap-1.5"
+                    >
+                      <Input
+                        value={storyReplyText}
+                        onChange={(e) => setStoryReplyText(e.target.value)}
+                        placeholder={
+                          language === "ha"
+                            ? `Aika martani ga ${activeStory.authorName}...`
+                            : `Reply to ${activeStory.authorName}...`
+                        }
+                        className="h-9 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-zinc-400 text-xs"
+                        disabled={isSendingReply}
+                      />
+                      <Button
+                        type="submit"
+                        size="icon"
+                        disabled={!storyReplyText.trim() || isSendingReply}
+                        className="h-9 w-9 rounded-xl bg-primary text-primary-foreground shrink-0"
+                      >
+                        {isSendingReply ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      </Button>
+                    </form>
+                  </div>
+                )}
+              </div>
             </div>
           </DialogContent>
         </Dialog>

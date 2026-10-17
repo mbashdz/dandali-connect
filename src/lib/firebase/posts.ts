@@ -22,7 +22,7 @@ import {
   type DocumentSnapshot
 } from 'firebase/firestore';
 import { createNotification } from './notifications';
-import type { Post, Comment as CommentType } from '@/types';
+import type { Post, Comment as CommentType, PollData } from '@/types';
 
 interface CreatePostData {
   content: string;
@@ -30,10 +30,12 @@ interface CreatePostData {
   authorUsername: string;
   authorName: string;
   authorAvatarUrl: string;
+  authorVerified?: boolean;
   imageUrl?: string;
   imageUrls?: string[];
   videoUrl?: string;
   voiceNoteUrl?: string;
+  poll?: PollData;
 }
 
 export const createPost = async (postData: CreatePostData): Promise<string> => {
@@ -72,8 +74,10 @@ export const createPost = async (postData: CreatePostData): Promise<string> => {
       authorUsername: postData.authorUsername,
       authorName: postData.authorName,
       authorAvatarUrl: postData.authorAvatarUrl,
+      authorVerified: !!postData.authorVerified,
       likesCount: 0,
       likedBy: [],
+      bookmarkedBy: [],
       commentsCount: 0,
       timestamp: serverTimestamp(),
     };
@@ -90,6 +94,9 @@ export const createPost = async (postData: CreatePostData): Promise<string> => {
     }
     if (postData.voiceNoteUrl) {
       postPayload.voiceNoteUrl = postData.voiceNoteUrl;
+    }
+    if (postData.poll && postData.poll.options && postData.poll.options.length >= 2) {
+      postPayload.poll = postData.poll;
     }
 
     console.log("[createPost] Payload for new post:", JSON.stringify(postPayload));
@@ -544,4 +551,99 @@ export const deletePost = async (postId: string): Promise<void> => {
     console.warn("[deletePost] Could not decrement postsCount:", err);
   }
 };
+
+export const voteOnPoll = async (
+  postId: string,
+  userId: string,
+  optionId: string
+): Promise<PollData> => {
+  const postRef = doc(db, 'posts', postId);
+  const postSnap = await getDoc(postRef);
+  if (!postSnap.exists()) throw new Error("Post not found");
+
+  const postData = postSnap.data() as Post;
+  if (!postData.poll) throw new Error("No poll attached to this post");
+
+  const currentPoll = postData.poll;
+  const voters = { ...(currentPoll.voters || {}) };
+  const previousOptionId = voters[userId];
+
+  // If clicking the exact same option, keep it or allow switching options
+  if (previousOptionId === optionId) {
+    return currentPoll;
+  }
+
+  voters[userId] = optionId;
+
+  const updatedOptions = currentPoll.options.map((opt) => {
+    let votes = opt.votes || 0;
+    if (opt.id === previousOptionId) {
+      votes = Math.max(0, votes - 1);
+    }
+    if (opt.id === optionId) {
+      votes = votes + 1;
+    }
+    return { ...opt, votes };
+  });
+
+  const totalVotes = updatedOptions.reduce((sum, opt) => sum + (opt.votes || 0), 0);
+
+  const updatedPoll: PollData = {
+    options: updatedOptions,
+    voters,
+    totalVotes,
+  };
+
+  try {
+    await updateDoc(postRef, {
+      poll: updatedPoll,
+    });
+  } catch (err) {
+    console.warn("[voteOnPoll] Firestore poll update warning:", err);
+  }
+
+  return updatedPoll;
+};
+
+export const toggleBookmarkPost = async (
+  postId: string,
+  userId: string
+): Promise<{ isBookmarked: boolean; bookmarkedBy: string[] }> => {
+  const postRef = doc(db, 'posts', postId);
+  const userRef = doc(db, 'users', userId);
+  const postSnap = await getDoc(postRef);
+  if (!postSnap.exists()) throw new Error("Post not found");
+
+  const postData = postSnap.data() as Post;
+  const currentBookmarks = postData.bookmarkedBy || [];
+  const isAlreadyBookmarked = currentBookmarks.includes(userId);
+
+  const nextBookmarkedBy = isAlreadyBookmarked
+    ? currentBookmarks.filter((id) => id !== userId)
+    : [...currentBookmarks, userId];
+
+  // Update user's own profile document (always allowed by security rules)
+  try {
+    await updateDoc(userRef, {
+      bookmarkedPostIds: isAlreadyBookmarked ? arrayRemove(postId) : arrayUnion(postId),
+    });
+  } catch (err) {
+    console.warn("[toggleBookmarkPost] User bookmark array update warning:", err);
+  }
+
+  // Also update post document
+  try {
+    await updateDoc(postRef, {
+      bookmarkedBy: isAlreadyBookmarked ? arrayRemove(userId) : arrayUnion(userId),
+    });
+  } catch (err) {
+    console.warn("[toggleBookmarkPost] Post bookmarkedBy update warning:", err);
+  }
+
+  return {
+    isBookmarked: !isAlreadyBookmarked,
+    bookmarkedBy: nextBookmarkedBy,
+  };
+};
+
 
